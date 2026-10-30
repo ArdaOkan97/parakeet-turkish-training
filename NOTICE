@@ -1,0 +1,5 @@
+Parakeet Turkish training pipeline
+Copyright 2026 ArdaOkan97 and contributors.
+
+Includes source files with retained NVIDIA, Mingkun Huang and Hugging Face notices.
+See THIRD_PARTY_NOTICES.md and docs/DATASETS.md for attribution and distinct dataset/model/dependency terms.

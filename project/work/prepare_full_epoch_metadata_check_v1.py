@@ -1,0 +1,22 @@
+from pathlib import Path
+import ast
+root=Path(__file__).resolve().parent.parent
+source=(root/'work/check_PT_token_actual_metadata_v1.py').read_text(encoding='utf-8')
+source=source.replace('tsc_uniform_pttoken_constraint_transition_v1','tsc_uniform_full_epoch_transition_v1')
+source=source.replace('record_TSC_uniform_pttoken_constraint_source_v1','record_TSC_uniform_full_epoch_source_v1')
+source=source.replace('adaptive_20261012_TR_uniform_PT_token5x_01','adaptive_20261012_TR_uniform_full_epoch_01')
+source=source.replace('TSC_PT_token5x_measured_retention_repair_review_v1','TSC_full_epoch9000_USER_policy_review_v1')
+source=source.replace('PT_token_closed_metadata_verification_receipt_v1','full_epoch_closed_metadata_verification_receipt_v1')
+source=source.replace('train_lora_batched_tsc_uniform_pttoken_v1','train_lora_batched_tsc_uniform_full_epoch_v1')
+source=source.replace('run_TSC_uniform_pttoken_v1','run_TSC_uniform_full_epoch_v1')
+source=source.replace('8750','9000').replace('24774','28274').replace('16359','16109')
+source=source.replace("['source_actual_failure_counter']==2", "['source_actual_failure_counter']==3")
+source=source.replace("['word_errors']==70", "['word_errors']==71")
+source=source.replace('token_constraint_declaration','full_epoch_declaration').replace('[200.,2.,20.]','[40.,2.,20.]')
+source=source.replace('for bad in (1.,3.):','for bad in (5.,2.):')
+source=source.replace("'source_counter_preserved':2", "'source_counter_preserved':3")
+source=source.replace("'PT_source_errors':70", "'PT_source_errors':71")
+source=source.replace('PT_token9000_actual_metadata_consumer_verification_v1','USER_full_epoch9000_actual_metadata_consumer_verification_v1')
+source=source.replace('TSC_PT_token9000_actual_metadata_consumer_verification_v1','TSC_full_epoch9000_actual_metadata_consumer_verification_v1')
+source=source.replace("'coverage_rewind_clips':0,", "'coverage_rewind_clips':0,'retention_stop_policy':'monitor_only',")
+file=root/'work/check_full_epoch_actual_metadata_v1.py';assert not file.exists();ast.parse(source);file.write_text(source,encoding='utf-8')

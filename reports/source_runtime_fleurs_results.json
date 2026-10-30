@@ -1,0 +1,169 @@
+{
+  "dataset": "google/fleurs",
+  "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+  "split": "complete official test",
+  "full_test_utterances": 5620,
+  "checkpoint_update": 400000,
+  "checkpoint_selection": "Best Turkish DEV checkpoint, selected before this test run",
+  "baseline_revision": "541d1f99c6b0c3cd0b11a95167540bb8edefd82b",
+  "baseline": "nvidia/parakeet-tdt-0.6b-v3",
+  "normalization": "NFC; Turkish-aware lowercase; delete Unicode punctuation; collapse whitespace; preserve accents; CER includes spaces",
+  "decode": "Serial greedy, original complete audio frontend and model generation settings. BF16 encoder/decoder autocast, unmerged adapted LoRA and production FP32 joint. Frozen matrices materialized on GPU without changing their values. Same conv tiling on both models.",
+  "loader_DEV_check": {
+    "word_errors": 174,
+    "reference_words": 825,
+    "WER_percent": 21.09090909090909
+  },
+  "results": [
+    {
+      "language": "tr",
+      "name": "Turkish",
+      "utterances": 743,
+      "audio_hours": 2.6056166666666667,
+      "reference_words": 12856,
+      "v3_word_errors": 12979,
+      "adapted_word_errors": 2341,
+      "v3_wer_percent": 100.95675171126321,
+      "adapted_wer_percent": 18.209396390790292,
+      "delta_percentage_points": -82.74735532047292,
+      "relative_change_percent": -81.96317127667771,
+      "delta_95pct_sentence_cluster_CI": [
+        -84.41290935646185,
+        -81.0184285538468
+      ],
+      "sentence_clusters": 329,
+      "bootstrap_resamples": 10000
+    },
+    {
+      "language": "en",
+      "name": "English",
+      "utterances": 647,
+      "audio_hours": 1.7744166666666663,
+      "reference_words": 14344,
+      "v3_word_errors": 811,
+      "adapted_word_errors": 850,
+      "v3_wer_percent": 5.653931957612939,
+      "adapted_wer_percent": 5.925822643614055,
+      "delta_percentage_points": 0.27189068600111527,
+      "relative_change_percent": 4.808877928483346,
+      "delta_95pct_sentence_cluster_CI": [
+        0.006927546543057186,
+        0.5463025570068795
+      ],
+      "sentence_clusters": 350,
+      "bootstrap_resamples": 10000
+    },
+    {
+      "language": "es",
+      "name": "Spanish",
+      "utterances": 908,
+      "audio_hours": 3.0905833333333343,
+      "reference_words": 23260,
+      "v3_word_errors": 865,
+      "adapted_word_errors": 953,
+      "v3_wer_percent": 3.718830610490112,
+      "adapted_wer_percent": 4.097162510748065,
+      "delta_percentage_points": 0.3783319002579534,
+      "relative_change_percent": 10.173410404624272,
+      "delta_95pct_sentence_cluster_CI": [
+        0.13899996054393834,
+        0.6558400325518285
+      ],
+      "sentence_clusters": 348,
+      "bootstrap_resamples": 10000
+    },
+    {
+      "language": "it",
+      "name": "Italian",
+      "utterances": 865,
+      "audio_hours": 3.521183333333333,
+      "reference_words": 20605,
+      "v3_word_errors": 647,
+      "adapted_word_errors": 717,
+      "v3_wer_percent": 3.1400145595729194,
+      "adapted_wer_percent": 3.479737927687455,
+      "delta_percentage_points": 0.3397233681145355,
+      "relative_change_percent": 10.819165378670803,
+      "delta_95pct_sentence_cluster_CI": [
+        0.15310747861027602,
+        0.5386512265576616
+      ],
+      "sentence_clusters": 346,
+      "bootstrap_resamples": 10000
+    },
+    {
+      "language": "fr",
+      "name": "French",
+      "utterances": 676,
+      "audio_hours": 1.951133333333336,
+      "reference_words": 16934,
+      "v3_word_errors": 970,
+      "adapted_word_errors": 1056,
+      "v3_wer_percent": 5.728120940120468,
+      "adapted_wer_percent": 6.2359749616156845,
+      "delta_percentage_points": 0.5078540214952166,
+      "relative_change_percent": 8.865979381443289,
+      "delta_95pct_sentence_cluster_CI": [
+        0.2483345741475463,
+        0.7680599942052475
+      ],
+      "sentence_clusters": 332,
+      "bootstrap_resamples": 10000
+    },
+    {
+      "language": "de",
+      "name": "German",
+      "utterances": 862,
+      "audio_hours": 3.1525833333333373,
+      "reference_words": 18503,
+      "v3_word_errors": 915,
+      "adapted_word_errors": 1035,
+      "v3_wer_percent": 4.945144030697725,
+      "adapted_wer_percent": 5.593687510133492,
+      "delta_percentage_points": 0.6485434794357668,
+      "relative_change_percent": 13.114754098360649,
+      "delta_95pct_sentence_cluster_CI": [
+        0.37787802272212795,
+        0.943041413510523
+      ],
+      "sentence_clusters": 347,
+      "bootstrap_resamples": 10000
+    },
+    {
+      "language": "pt",
+      "name": "Portuguese",
+      "utterances": 919,
+      "audio_hours": 3.2389166666666713,
+      "reference_words": 21269,
+      "v3_word_errors": 1071,
+      "adapted_word_errors": 1145,
+      "v3_wer_percent": 5.035497672669143,
+      "adapted_wer_percent": 5.383421881611735,
+      "delta_percentage_points": 0.34792420894259185,
+      "relative_change_percent": 6.909430438842201,
+      "delta_95pct_sentence_cluster_CI": [
+        0.09807230063073304,
+        0.5863046978807738
+      ],
+      "sentence_clusters": 349,
+      "bootstrap_resamples": 10000
+    }
+  ],
+  "aggregate": {
+    "six_retention_languages": {
+      "reference_words": 114915,
+      "v3_wer_percent": 4.59383022233825,
+      "adapted_wer_percent": 5.008919636252883,
+      "delta_percentage_points": 0.4150894139146333,
+      "macro_average_delta_percentage_points": 0.41571127737452995
+    },
+    "all_seven": {
+      "reference_words": 127771,
+      "v3_wer_percent": 14.289627536764993,
+      "adapted_wer_percent": 6.3371187515163845,
+      "delta_percentage_points": -7.952508785248608,
+      "macro_average_delta_percentage_points": -11.46472680803225
+    }
+  },
+  "no_test_selection_or_training": true
+}

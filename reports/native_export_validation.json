@@ -1,0 +1,42 @@
+{
+  "passed": true,
+  "checkpoint_update": 400000,
+  "native_class": "nemo.collections.asr.models.EncDecRNNTBPEModel",
+  "native_archive_sha256": "5c4f51ee50ea19bb598c4e8024c6741cf8513d57d55c5cae01287ae335d4ae25",
+  "native_validation_runtime": "NeMo3.0.0 / PyTorch2.7.1, CPU FP32, batch1, ordinary greedy_batch; mmap used only for low temporary commitment",
+  "native_Turkish_DEV": {
+    "wer": 0.2206060606060606,
+    "cer": 0.07745908280667639,
+    "word_errors": 182,
+    "reference_words": 825,
+    "character_errors": 478,
+    "reference_characters": 6171,
+    "utterances": 50,
+    "normalization": "NFC; Turkish-aware lowercase; delete Unicode punctuation; collapse whitespace; preserve accents; CER includes spaces"
+  },
+  "adapter_validation": {
+    "passed": true,
+    "merged_tensor_hash_matches": 135,
+    "merged_tensor_hash_mismatches": 0,
+    "Turkish_DEV": {
+      "wer": 0.2206060606060606,
+      "cer": 0.07745908280667639,
+      "word_errors": 182,
+      "reference_words": 825,
+      "character_errors": 478,
+      "reference_characters": 6171,
+      "utterances": 50,
+      "normalization": "NFC; Turkish-aware lowercase; delete Unicode punctuation; collapse whitespace; preserve accents; CER includes spaces"
+    },
+    "matched_TEST_clips": 70,
+    "identical_TEST_transcripts": 70,
+    "seconds": 205.0319999998901,
+    "peak_private": 7732514816,
+    "CUDA_peak": 0
+  },
+  "native_TEST_smoke_count": 70,
+  "source_runtime_full_FLEURS_count": 5620,
+  "GPU_validation_completed": false,
+  "GPU_limitation": "Host private-memory8GB guard stopped GPU attempts; limits were not raised",
+  "archive_tensor_bytes_unchanged_by_portability_config_fix": true
+}

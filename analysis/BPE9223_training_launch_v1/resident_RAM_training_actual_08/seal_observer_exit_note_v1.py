@@ -1,0 +1,8 @@
+import hashlib,json
+from pathlib import Path
+N=Path(__file__).parent
+def pin(p):
+ p=Path(p).resolve();return {'path':str(p),'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
+r=json.loads((N/'actual_corrected_original_clip_saved32600_status.json').read_text())
+v={'kind':'ASR18_actual_recovery_observer_exit_and_JSON_key_type_note_v1','preserved_observer1':{'source':pin(N/'seal_original_full_clip_production_checkpoint_v1.py'),'actual_exec_tool_exit_code':1,'tool_chunk':'510d3c','failure_scope':'Extra full-native archived JSON rehash assertion before observation receipt; training untouched'},'observer2':{'source':pin(N/'seal_original_full_clip_production_checkpoint_v2.py'),'actual_exec_tool_exit_code':0,'tool_chunk':'d096e9','receipt':pin(N/'actual_corrected_original_clip_saved32600_status.json')},'source_declared_integer_map':'native.joint_work_unit_allocation_routes: native_update routes[i] with integer row indices, serialized JSON object keys become strings','archived_JSON_native_digest':r['actual_native_receipt_archived_JSON_sha256'],'reconstructed_original_integer_map_digest':r['actual_native_receipt_commit_type_sha256'],'committed_full_native_receipt_digest':r['journal_event32406']['native']['full_native_receipt_sha256'],'exact_reconstruction_matches_commit':r['actual_native_receipt_commit_type_sha256']==r['journal_event32406']['native']['full_native_receipt_sha256'],'training_source_environment_process_or_receipts_modified':False}
+p=N/'actual_recovery_observer_exit_note_v1.json';assert not p.exists();p.write_text(json.dumps(v,indent=2)+'\n',encoding='utf-8');print(json.dumps(pin(p)))

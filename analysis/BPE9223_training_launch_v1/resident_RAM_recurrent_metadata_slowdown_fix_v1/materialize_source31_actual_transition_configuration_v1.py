@@ -1,0 +1,92 @@
+"""INACTIVE metadata assembler. Run only after separately ROOT-reviewed actual stop.
+No validator/control, journal read, lease, GPU, restore or prefix-copy operation.
+"""
+import argparse,copy,hashlib,json
+from pathlib import Path
+P=Path('C:/Users/ardao/Documents/Codex/2026-10-10/i-x20');S=P/'outputs/parakeet_turkish';R=P/'work/research';F=Path(__file__).parent
+B=Path('E:/gpu_training_scratchpad/runs/BPE9223_resident_RAM_20261018_01')
+def require(v,m):
+ if not v:raise ValueError(m)
+def read(p):return json.loads(Path(p).read_text())
+def pin(p):
+ p=Path(p).resolve();b=p.read_bytes();return dict(path=str(p),bytes=len(b),sha256=hashlib.sha256(b).hexdigest())
+def write(p,v):
+ with Path(p).open('x',encoding='utf-8',newline='\n')as f:json.dump(v,f,indent=2,ensure_ascii=False);f.write('\n')
+def main(a):
+ review=read(a.ROOT_review)
+ require(review['accepted']is True and review['reviewer']=='/root'and review['scope']=='ASR18_fresh_signature_collect_metadata_materialization_v1',
+  'Only exact reviewed stop metadata may be materialized; no production admission')
+ require(review['materialization_source']==pin(__file__),'ROOT binds exact metadata assembler')
+ for v in review['input_pins']:require(pin(v['path'])==v,'Frozen pre-stop source inputs unchanged')
+ closure=F/'actual_source30_fresh_signature_collect_checkpoint_transition_01/actual_transition_closure.json';value=read(closure)
+ require(value['kind']=='ASR18_actual_source30_checkpoint_fresh_signature_collect_transition_v1'and value['owned_session']==72166
+  and value['actual_outer_TOOL_exit_code']==1 and value['normal0_claimed']is False and value['all_five_exact_dead']is True,
+  'Genuine supported source30 intentional stop; actual final acceptance still ROOT responsibility')
+ require(value['evidence']['ROOT_pre_stop_review']==review['actual_pre_stop_review']and pin(review['actual_pre_stop_review']['path'])==review['actual_pre_stop_review'],'Exact original actual pre-stop provenance')
+ actual_stop_ROOT=review['actual_stop_ROOT_review'];require(pin(actual_stop_ROOT['path'])==actual_stop_ROOT and read(actual_stop_ROOT['path'])['accepted']is True and read(actual_stop_ROOT['path'])['reviewer']=='/root','Separate genuine ROOT actual-stop acceptance')
+ monitor=value['monitor_completion'];require(type(monitor)is dict and monitor['joined']is True and monitor['clean']is True and monitor['error']is None,
+  'Actual original Monitor closure clean; concurrent guard failure is not an intentional transition')
+ configuration=read(F/'candidate_source31_configuration_completed_CPU_pending_actual_stop_v1.json')
+ require(configuration['prior_resident_RAM_fresh_signature_collect_checkpoint_transition']is None,'Only None actual closure slot replaced')
+ configuration['prior_resident_RAM_fresh_signature_collect_checkpoint_transition']=pin(closure)
+ sourcebase=F/'production_configuration_v1/configuration.json';previous=read(sourcebase)
+ inverse=copy.deepcopy(configuration);del inverse['fresh_metadata_signature_and_collect_observation_policy'];del inverse['prior_resident_RAM_fresh_signature_collect_checkpoint_transition']
+ require(inverse==previous,'Every original source configuration value exact after only two operational additions')
+ folder=F/'production_configuration_source31_v1';require(not folder.exists(),'One immutable final metadata materialization')
+ config=folder/'configuration.json';raw=(json.dumps(configuration,indent=2,ensure_ascii=False)+'\n').encode();configpin={'path':str(config.resolve()),'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}
+ keys=['worker_driver_source','parent_driver_source','resident_RAM_stream_configuration','resident_branch_namespace','checkpoint_interval_updates','source_checkpoint','source_configuration']
+ oldruntime=read(B/'invocations/owner_000022/configuration.json');oldrestored=copy.deepcopy(oldruntime)
+ olddiff={}
+ for key in keys:
+  if oldruntime[key]!=previous.get(key):olddiff[key]={'source':previous.get(key),'actual_runtime':oldruntime[key]}
+  if key in previous:oldrestored[key]=previous[key]
+  else:del oldrestored[key]
+ require(oldrestored==previous,'Old actual runtime differs from proper source base only seven declared runtime kinds')
+ pointer=value['evidence']['pointer'];saved=value['last_fully_saved_optimizer_updates'];latest=read(B/'latest_checkpoint.json')
+ require(latest['pointer']==pointer and latest['committed_updates']==saved and latest['full_state_verified']is True,'Actual latest full saved checkpoint selected AFTER stop')
+ future=dict(worker_driver_source=pin(R/'run_ASR18_BPE9223_resident_RAM_training_v31.py'),parent_driver_source=pin(R/'run_ASR18_BPE9223_resident_RAM_training_v31.py'),
+  resident_RAM_stream_configuration=configpin,resident_branch_namespace=str(B),checkpoint_interval_updates=200,source_checkpoint=pointer,source_configuration=configpin)
+ validation={'restored_updates':saved,'next_scheduled_DEV_updates':((saved//4000)+1)*4000,
+  'start_updates':saved+20,'end_updates':max(saved+20+1600,((saved//4000)+1)*4000+1020),
+  'formula':'start=restored+20; end=max(start+1600,nextscheduledDEV+1020)',
+  'entire_contiguous_original_timing_rows_required':True,'all_natural_save_and_actual_DEV_time_included':True,
+  'no_archive_reads_original_collect_per20_scalars_only':True,
+  'all200_blocks_first400_final400_and_postDEV220_620_1020_blocks':True,
+  'engineering_acceptance':'Near original76.57 inclusive (~75+), save-excluded first-final sustained decline<=5%, no guard/science/state/checkpoint/reader regression. All pauses retained and any DEV-containing first400 explicitly labelled; partial gain keeps human fix open.',
+  'no_cherry_pick_or_short_warm_success':True,'no_finite_training_stop':True,'full_target_updates':401072,'administrative_stop':None}
+ inversepath=F/'final_source31_configuration_and_future7_runtime_bindings_v1.json'
+ inverse_report=dict(proper_source_base=pin(sourcebase),source_configuration=configpin,inverse_after_only_two_operational_fields_exact=True,
+  prior_source_to_actual_runtime_differences=olddiff,original_runtime_binding_kinds=keys,future_actual_runtime_bindings=future,actual_restore_frontier=saved,predeclared_long_validation=validation)
+ output=F.parent/'resident_RAM_training_actual_24';require(not output.exists()and not(B/'invocations/owner_000023').exists()and not(B/'journals/commits_000023.jsonl').exists(),'Fresh next owner23/output24/journal23, no reuse')
+ rootfuture=F/('ROOT_source31_fresh_signature_collect_saved'+str(saved)+'_final_execution_review_v1.json')
+ args=['--review',str(rootfuture),'--configuration',str(config),'--pointer',pointer['path'],'--latest-failure',read(B/'invocations/owner_000022/boot.json')['latest_failure']['path'],
+  '--branch',str(B),'--output',str(output),'--start-invocation','23','--queue-bytes','268435456','--fresh-signature-resume',str(closure)]
+ require(len(args)==18,'Exact 18-string future wrapper argument array')
+ handoff={'kind':'ASR18_source31_actual_fresh_signature_collect_transition_final_metadata_handoff_v1','production_admitted':False,
+  'driver_source':future['worker_driver_source'],'wrapper_source':pin(R/'run_ASR18_BPE9223_resident_RAM_autocontinue_v31.py'),
+  'RAM_native_source':pin(S/'asr18_BPE9223_grouped_RAM_native_v1.py'),'CPU_source':pin(S/'fastmss_resident_feature_stream_v11.py'),
+  'DEV_helper_source':pin(S/'asr18_resident_serial350_DEV_v2.py'),'fresh_signature_transition_validator':pin(S/'asr18_fresh_signature_collect_checkpoint_transition_v1.py'),
+  'archive_helper_source':pin(F/'asr18_canonical_prepared_archive_v1.py'),'source_configuration':configpin,'initial_checkpoint':pointer,
+  'latest_failure':read(B/'invocations/owner_000022/boot.json')['latest_failure'],'fresh_signature_resume':pin(closure),
+  'initial_owner_invocation':23,'bounded_RAM_queue_bytes':268435456,'periodic_DEV_interval_updates':4000,
+  'prepared_metadata_archive_representation_policy':configuration['prepared_metadata_archive_representation_policy'],
+  'fresh_metadata_signature_and_collect_observation_policy':configuration['fresh_metadata_signature_and_collect_observation_policy'],
+  'actual_CPU_review':configuration['fresh_metadata_signature_and_collect_observation_policy']['completed_CPU_review'],
+  'long_validation_observer_source':pin(F/'observe_source31_dynamic_durable_validation_v1.py'),
+  'packet_credit_policy':configuration['resident_RAM_packet_credit_policy'],'native_update_commit_pressure_policy':configuration['native_update_commit_pressure_policy'],
+  'periodic_DEV_CPU_quiescence_policy':configuration['periodic_DEV_CPU_quiescence_policy'],
+  'private_scalar_prefetch_source':configuration['private_scalar_prefetch_policy']['source'],
+  'private_scalar_prefetch_actual_CPU_review':configuration['private_scalar_prefetch_policy']['actual_CPU_control_review'],
+  'additional_prefetch_host_reservation_bytes':268435456,'human_approval':pin(F/'ROOT_direct_human_then_fix_authorization_v1.json'),
+  'configuration_inverse_and_runtime7':{'path':str(inversepath.resolve()),'bytes':len((json.dumps(inverse_report,indent=2,ensure_ascii=False)+'\n').encode()),'sha256':hashlib.sha256((json.dumps(inverse_report,indent=2,ensure_ascii=False)+'\n').encode()).hexdigest()},'predeclared_actual_production_validation':validation,
+  'actual_pre_stop_review':review['actual_pre_stop_review'],'actual_stop_ROOT_review':actual_stop_ROOT,'metadata_materialization_scope':pin(a.ROOT_review),'actual_stop_closure':pin(closure),'exact_future_wrapper_arguments':args,
+  'required_next_steps':['Separate ROOT typed-metadata scope','ONE actual typed-metadata0/exactdeaths','Final ROOT exact execution binding','ONE actual full-state restart','genuine redo then natural standard200 and positive','complete long contiguous through-DEV production validation'],
+  'no_memory_saving_speed_or_complete_cause_claim':True}
+ hp=F/'final_source31_signature_collect_transition_execution_handoff_v1.json';require(not hp.exists()and not inversepath.exists(),'Every final output absent BEFORE any write')
+ folder.mkdir()
+ with config.open('xb')as f:f.write(raw)
+ require(pin(config)==configpin,'Serialized final config exact prospective pin')
+ write(inversepath,inverse_report);write(hp,handoff)
+ print(json.dumps({'configuration':configpin,'inverse_runtime7':pin(inversepath),'handoff':pin(hp),'actual_restored_frontier':saved,'validation':validation}))
+if __name__=='__main__':
+ p=argparse.ArgumentParser();p.add_argument('--ROOT-review',required=True);main(p.parse_args())

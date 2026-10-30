@@ -1,0 +1,51 @@
+"""Compact actual156k quality and normal periodic CPU closure."""
+import datetime,hashlib,json,os,shutil,sys,time
+from pathlib import Path
+import psutil
+P=Path(r'C:\Users\ardao\Documents\Codex\2026-10-10\i-x20');S=P/'outputs/parakeet_turkish';sys.path.insert(0,str(S))
+from resource_watchdog_v2 import sample_memory
+B=Path(r'E:\gpu_training_scratchpad\runs\BPE9223_resident_RAM_20261018_01');I=B/'invocations/owner_000016';A=Path(__file__).parent
+began=time.monotonic();psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+def require(v,m):
+ if not v:raise ValueError(m)
+def pin(p):
+ p=Path(p);b=p.read_bytes();return {'path':str(p),'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest()}
+def read(p):return json.loads(Path(p).read_text(encoding='utf-8-sig'))
+def guard():
+ v=sample_memory(os.getpid(),'periodic156000_compact_actual_metadata');m=v['system_memory']
+ require(v['paired_sampling_within_one_second']and v['worker_private_memory']['private_bytes']<512*1024**2 and m['commit_available_bytes']>=2000000000+268435456 and m['physical_available_bytes']>=1500000000+268435456 and shutil.disk_usage('E:/').free>=100000000000 and time.monotonic()-began<180,'Original bounded metadata/headroom/E/full256MiB guards');return v
+initial=guard();require(initial['system_memory']['commit_available_bytes']>=2000000000+268435456+512*1024**2 and initial['system_memory']['physical_available_bytes']>=1500000000+268435456+512*1024**2,'Full prospective metadata reserve')
+state=read(B/'periodic_DEV.json');entries=[v for v in state['completed_evaluations']if v['optimizer_updates']==156000];require(len(entries)==1,'One real156k record');entry=entries[0]
+report=read(entry['DEV']['path']);preservation=read(entry['frontier_preservation']['path']);CK=B/'checkpoints/update_000156000'
+require(pin(entry['DEV']['path'])==entry['DEV']and pin(entry['frontier_preservation']['path'])==entry['frontier_preservation']and pin(CK/'pointer.json')==entry['checkpoint_pointer'],'Exact periodic record/source pointers')
+require(report['passed']and report['optimizer_updates']==156000 and report['actual_native_updates_in_DEV']==0 and report['all207_threeAdam_all4RNG_unchanged']and not report['TEST_used']and not report['retention_early_stop'],'Actual unchanged full350/no-native/TESTfalse/earlystopfalse')
+for k in ('all207_threeAdam_all4RNG_unchanged','both_cursors_journal_and_nextdraw_unchanged','fullpass_and_winner_state_unchanged_here'):require(preservation[k]is True,'Exact actual preservation '+k)
+require(preservation['actual_native_updates_in_DEV']==0 and preservation['actual_sampler_or_replay_advance']is False and preservation['optimizer_updates']==156000,'Actual unchanged frontier')
+require(entry['periodic_record_advances_full_pass_or_winner']is False and entry['shared_with_full_pass_DEV']is False,'Periodic only; no invented pass boundary')
+predictions={};counts={}
+for lang,p in report['predictions'].items():
+ require(pin(p['path'])==p,'Exact genuine prediction file '+lang)
+ rows=[json.loads(line)for line in Path(p['path']).read_text(encoding='utf-8').splitlines()if line];require(len(rows)==50,'Exactly50 genuine '+lang)
+ predictions[lang]=p;counts[lang]=len(rows);del rows;guard()
+require(set(predictions)==set(('tr','en','es','it','fr','de','pt'))and entry['score']['full350_DEV_complete'],'Exact7x50 DEV')
+persistence=read(CK/'persistence_verified.json');require(persistence['passed']and persistence['optimizer_updates']==156000 and persistence['named_tensors_verified']==854 and persistence['weights_verified']==207 and persistence['Adam_states_verified']==215 and persistence['independent_pre_save_state_sha256']==persistence['saved_state_sha256'],'Full854/207/215 PRE-SAVED persistence')
+qpath=I/'CPU_periodic_000156000_quiescence.json';q=read(qpath);closed=q['CPU_actual0'];require(q['optimizer_updates']==156000 and q['private_packets_discarded']==20 and q['actual_native_updates']==0 and q['authoritative_sampler_replay_or_journal_advance']is False and q['private_plan_regenerated_or_reordered']is False and q['full_prefetch_and_DEV_reservations_unchanged']is True and q['only_original_two_carried_RNG_representation_paths_normalized']is True,'Real original periodic quiescence/unchanged authoritative state')
+require(closed['actual_Popen_wait_code']==0 and closed['transport_threads_joined']is True and closed['pipe_handles_closed']is True and closed['completed_updates']==4020,'Genuine CPU20drain/wait0/threads+handles closed')
+require(q['unconsumed_private_plan']==preservation['pending_private_plan_retained']and pin(q['unconsumed_private_plan']['path'])==q['unconsumed_private_plan'],'Same exact pending661 retained')
+who_old=closed['producer_identity']
+try:old_now=psutil.Process(who_old['pid']).create_time();old_dead=abs(old_now-who_old['create_time'])>=.001
+except psutil.NoSuchProcess:old_dead=True
+require(old_dead,'Actual old CPU exact identity dead after wait0')
+newready_path=I/'CPU_after_periodic_DEV_000156000/actual_CPU_ready.json';newready=read(newready_path);CPU=newready['producer_identity']
+require(abs(psutil.Process(CPU['pid']).create_time()-CPU['create_time'])<.001,'Actual postDEV newCPU alive')
+raw=(B/'progress/latest.json').read_bytes();progress=json.loads(raw);native=progress['producer'];require(native==read(I/'boot.json')['producer']and progress['actual_optimizer_updates']>156000 and not progress['optimizer_poisoned']and not progress['schedule_poisoned']and abs(psutil.Process(native['pid']).create_time()-native['create_time'])<.001,'Same actual healthy native and resumedpositive')
+require(progress['actual_optimizer_updates']>156200,'Actual post156200 positive training')
+nextCK=B/'checkpoints/update_000156200';nextpersistence=read(nextCK/'persistence_verified.json')
+require(nextpersistence['passed']and nextpersistence['optimizer_updates']==156200 and nextpersistence['named_tensors_verified']==854 and nextpersistence['weights_verified']==207 and nextpersistence['Adam_states_verified']==215 and nextpersistence['independent_pre_save_state_sha256']==nextpersistence['saved_state_sha256'],'Next standard156200 full854/207/215 PRE-SAVED persistence')
+observation=A/'actual_periodic156000_postpositive_progress.json';require(not observation.exists(),'One positive snapshot');observation.write_bytes(raw)
+status={'kind':'ASR18_actual_periodic156000_full350_quiescence_and_resumed_training_v1','passed':True,'owned_session':47103,'source':progress['source'],'native':native,'current_CPU':CPU,'actual_optimizer_updates':progress['actual_optimizer_updates'],'native_updates_this_process':progress['native_updates_this_process'],'periodic_optimizer_updates':156000,
+ 'evidence':{'DEV':entry['DEV'],'preservation':entry['frontier_preservation'],'pointer':entry['checkpoint_pointer'],'persistence':pin(CK/'persistence_verified.json'),'pending_plan':q['unconsumed_private_plan'],'post_positive_progress':pin(observation)},'standard_next156200_checkpoint':{'pointer':pin(nextCK/'pointer.json'),'persistence':pin(nextCK/'persistence_verified.json'),'optimizer_updates':156200,'full854_207_215_PRE_SAVED_passed':True},'prediction_files':predictions,'prediction_counts':counts,'score':entry['score'],'retention_cap_misses':{k:entry['score']['word_errors'][k]-limit for k,limit in entry['score']['retention_limits'].items()if entry['score']['word_errors'][k]>limit},
+ 'TR_change_vs152000':{'previous_errors':204,'current_errors':entry['score']['word_errors']['tr'],'reference_words':825,'error_change':entry['score']['word_errors']['tr']-204,'percentage_point_change':(entry['score']['word_errors']['tr']-204)/825*100},'all207_threeAdam_fourRNG_bothcursors_journal_nextdraw_and_pendingplan_preserved':True,'actual_DEV_native_updates':0,'fullpass_or_winner_advance':False,'TEST_used':False,'retention_early_stop':False,
+ 'actual_normal_periodic_helper2_phase':{'receipt':pin(qpath),'private_packets_drained_and_released':20,'CPU_actual_Popen_wait_code':0,'CPU_completed_updates':closed['completed_updates'],'transport_threads_joined':True,'pipe_handles_closed':True,'original_CPU':who_old,'original_CPU_observed_exact_dead':True,'same_pending_plan661_retained':True,'only_two_original_RNG_representation_paths_normalized':True,'authoritative_sampler_replay_journal_advance':False,'private_plan_regenerated_or_reordered':False,'all_reservations_unchanged':True,'current_new_CPU_ready':pin(newready_path),'current_new_CPU':CPU},
+ 'DEV_wall_seconds':preservation['wall_seconds'],'DEV_private_peak_bytes_resident_scope':preservation['actual_phase_private']['private_peak_bytes'],'DEV_incremental_allowance_bytes':preservation['incremental_private_allowance_bytes'],'actual_DEV_admission':preservation['admission'],'full_run_target':401072,'administrative_update_stop':None,'training_continues':True,'no_extra_GPU_job_DEV_inference_export_or_study':True,'last_metadata_resource_sample':guard()}
+path=A/'actual_periodic156000_and_resumed_training_status.json';require(not path.exists(),'One actual quality status');path.write_text(json.dumps(status,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');print(json.dumps({'status':pin(path),'actual_updates':progress['actual_optimizer_updates'],'current_CPU':CPU,'CPU_quiescence':pin(qpath),'score':entry['score']}),flush=True)

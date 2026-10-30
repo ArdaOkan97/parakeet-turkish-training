@@ -1,0 +1,117 @@
+{
+  "base_model": {
+    "id": "nvidia/parakeet-tdt-0.6b-v3",
+    "revision": "541d1f99c6b0c3cd0b11a95167540bb8edefd82b",
+    "license": "CC-BY-4.0",
+    "credit": "NVIDIA; see upstream card and technical report for inherited pretraining sources"
+  },
+  "datasets": [
+    {
+      "id": "ysdede/commonvoice_17_tr_fixed",
+      "revision": "9d8a025f1ae7c5a2f5c43298c7c4910b03995a4b",
+      "credit": "Mozilla Common Voice 17 Turkish contributors; ysdede fixed release",
+      "terms": "CC0-1.0",
+      "use": "Turkish training",
+      "source_url": null
+    },
+    {
+      "id": "google/fleurs",
+      "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+      "credit": "Google and the FLEURS authors/contributors",
+      "terms": "CC-BY-4.0",
+      "use": "Turkish TRAIN; English, Spanish, Italian, French, German and Portuguese TRAIN replay/distillation; validation selection; TEST evaluation only",
+      "source_url": null
+    },
+    {
+      "id": "issai/Turkish_Speech_Corpus",
+      "revision": "d79ea01392882322e8f46657cb635236af25b6d4",
+      "credit": "ISSAI / Nazarbayev University; Mussakhojayeva, Dauletbek, Yeshpanov and Varol",
+      "terms": "CC-BY-4.0 (publisher corpus terms; HF card metadata says MIT)",
+      "use": "Turkish training",
+      "source_url": "https://issai.nu.edu.kz/turkic-asr/"
+    },
+    {
+      "id": "disco-eth/WorldSpeech",
+      "revision": "f389569345a04eb8ac8fa9405b0d5048ad74b8b3",
+      "credit": "DISCO / ETH Zurich WorldSpeech team and Turkish Parliament (TBMM) source speakers",
+      "terms": "CC-BY-NC-4.0",
+      "use": "98,970 accepted Turkish training clips",
+      "source_url": "https://www.tbmm.gov.tr/"
+    },
+    {
+      "id": "cloud0day3/alania-speech-captions-tr",
+      "revision": "8b0fdd976ed9668b64f5ee0696317a8f241ce39c",
+      "credit": "cloud0day3 / Alania; YODAS authors and original recording uploaders",
+      "terms": "Caption metadata CC-BY-4.0; derived YODAS transcripts CC-BY-3.0",
+      "use": "Turkish broad-phase text/caption descriptors; paired with original YODAS3 audio",
+      "source_url": null
+    },
+    {
+      "id": "espnet/yodas3",
+      "revision": "81d802f45a1c1e1f5331260484dacf1fbea81981",
+      "credit": "ESPnet / YODAS team and original Creative Commons video uploaders",
+      "terms": "CC-BY-3.0",
+      "use": "Original Turkish audio referenced by Alania metadata (51 tar shards)",
+      "source_url": null
+    },
+    {
+      "id": "serdarcaglar/kiraat",
+      "revision": "f8afe95abedc19ec6392c77cf470f5d3dcd2788f",
+      "credit": "Serdar Çağlar / KIRAAT and all 27 source channels credited below",
+      "terms": "Attribution requested; public model release permission separately confirmed by the model publisher",
+      "use": "Turkish training/rest portions; published DEV and TEST excluded from TRAIN",
+      "source_url": null
+    }
+  ],
+  "KIRAAT_source_channels": [
+    "seslikitaplarmavi",
+    "BirDinle",
+    "dinleyiniz",
+    "sess-Seslikitap",
+    "Peri_Mia",
+    "Pandoramedyaseslikitap",
+    "ZubeyirSener",
+    "ses-arşiv",
+    "cantadakitap",
+    "anahtarca",
+    "kitaplar",
+    "seslikutuphanemkanali",
+    "kitapdinle",
+    "idea_stüdyo",
+    "MuratKaraOfficial2021",
+    "seslimakalem",
+    "SesliKitaPodcast",
+    "seslikitapturkish",
+    "sesli-kitaplar",
+    "eba",
+    "Seslendiriyor",
+    "OkumaSaati",
+    "SESLİKİTAPEVİ",
+    "denizinötesindekisesler",
+    "seskitap",
+    "bizimkütüphane",
+    "KitaplarinKedisi"
+  ],
+  "noise": [
+    {
+      "title": "Coffee Shop.wav",
+      "creator": "Trainscough5407",
+      "url": "https://freesound.org/people/Trainscough5407/sounds/404478/",
+      "license": "CC0-1.0"
+    },
+    {
+      "title": "Fan.wav",
+      "creator": "Q.K.",
+      "url": "https://freesound.org/people/Q.K./sounds/56236/",
+      "license": "CC0-1.0"
+    },
+    {
+      "title": "traffic-cars-ambience.wav",
+      "creator": "DotAfter",
+      "url": "https://freesound.org/people/DotAfter/sounds/610978/",
+      "license": "CC0-1.0"
+    }
+  ],
+  "room_responses": "16 locally simulated near/far responses in eight rooms using pyroomacoustics; no external RIR dataset",
+  "model_license": "CC-BY-NC-4.0"
+}

@@ -1,0 +1,26 @@
+"""One independently accepted periodic quality CLI note; no training action."""
+import json,subprocess,sys
+from pathlib import Path
+P=Path(r'C:\Users\ardao\Documents\Codex\2026-10-10\i-x20');S=P/'outputs/parakeet_turkish';sys.path.insert(0,str(S))
+from atomic_io_retry_v1 import read_json,write_json
+from bpe_broad_audio_v1 import record,require
+N=Path(__file__).parent;marker='BPE9223_PERIODIC92000_FULL350_27P636364_STATE_PRESERVED_RESUMED_SAMPLES_20261021'
+status=N/'actual_periodic92000_and_resumed_training_status.json'
+require(record(status)['sha256']=='aac9bd8baed0d9bee9d47bbb327b4f8549ccbba860a42b2637ef1b438fe5b62d','Exact actual quality status')
+r=read_json(status)
+root_review=N.parent/'ROOT_periodic92000_and_resumed_training_verification_v1.json'
+require(record(root_review)['sha256']=='88d1abd360e4e54ccfac5ffb83f00878ed8ef079588e860ac114adfc3117550a','Exact ROOT quality acceptance')
+review=read_json(root_review);require(review['accepted'] is True and review['status_sha256']==record(status)['sha256'],'ROOT accepted exact actual full350 and resumed work')
+cli=S/'tools/backlog.exe';view=subprocess.run([str(cli),'task','view','ASR-18','--json'],cwd=S,capture_output=True,text=True,encoding='utf-8');require(view.returncode==0 and marker not in view.stdout,'Canonical task view and no duplicate marker')
+samples=Path(r'E:\gpu_training_scratchpad\exports\BPE9223_Turkish_DEV92000_samples_20261021T080857Z')
+require(record(samples/'samples.json')['sha256']=='17b1aa0bef3f6f45ff32515b19ea228d4ccd401f73fc08a2c5ea81d9873e06a2' and (samples/'index.html').exists(),'Exact ROOT-exported first five ordered92k samples, no inference duplicated')
+note=(f'[{marker}]\nActual periodic DEV at optimizer update 92,000 completed the original fixed seven-language 50-clip sets (350 examples), using unchanged manifests, official scorer and decoding. Turkish WER is 228/825 = 27.636364%, compared with 226/825 = 27.393939% at 88,000: 2 more word errors and +0.242424 percentage points. Retention counts are EN 56/1045, ES 61/1289, IT 23/1158, FR 72/1072, DE 74/1004 and PT 65/1095. Spanish exceeds cap52 by9 and German exceeds cap70 by4; the other four remain within their immutable caps. All-six retention remains false. No qualified winner, full-pass advancement, early stop or TEST use is claimed.\n'
+f'DEV elapsed {r["DEV_wall_seconds"]:.3f}s with sampled native-owner private peak {r["DEV_private_peak_bytes_native_owner"]:,} bytes. All207 trainable tensors, three Adam optimizers, four RNG states, both cursors/replay, journal/nextdraw and exact pending plan181 were preserved. DEV consumed zero native updates or authoritative draws. Checkpoint92,000 passed854-tensor/215-Adam-state persistence and PRE/SAVED/live equality. Same admitted source12/native35820/session80857 genuinely resumed; immutable observed progress is {r["actual_optimizer_updates_at_observation"]:,}, both poisonflags false. Full401072/adminNone automatic continuation remains active; next periodic96,000. Training source, environment, child and resource settings stayed unchanged during DEV; inactive timing/preflight were not deployed.\n'
+f'User-requested examples: {samples/"index.html"} — same first five Turkish DEV rows in original order, original audio, exact reference and actual92k hypothesis; no quality selection or extra inference. Manifest: {samples/"samples.json"}.\n'
+f'Evidence: {status}\nROOT verification: {root_review}\nDEV: {r["periodic_result"]["DEV"]["path"]}\n')
+note_path=N/'periodic92000_milestone_note.txt';require(not note_path.exists(),'One note');note_path.write_text(note,encoding='utf-8')
+edit=subprocess.run([str(cli),'task','edit','ASR-18','--status','In Progress','--append-notes',note],cwd=S,capture_output=True,text=True,encoding='utf-8');(N/'periodic92000_task_edit.log').write_text(edit.stdout+edit.stderr,encoding='utf-8');require(edit.returncode==0,'Actual task edit0')
+refresh=subprocess.run([str(P/'work/training-env/Scripts/python.exe'),str(S/'refresh_backlog.py')],cwd=P,capture_output=True,text=True,encoding='utf-8');(N/'periodic92000_refresh.log').write_text(refresh.stdout+refresh.stderr,encoding='utf-8');require(refresh.returncode==0,'Actual board refresh0')
+verify=subprocess.run([str(cli),'task','view','ASR-18','--json'],cwd=S,capture_output=True,text=True,encoding='utf-8');require(verify.returncode==0 and verify.stdout.count(marker)==1,'Exactly one canonical marker after edit')
+receipt={'kind':'ASR18_actual_periodic92000_CLI_milestone_and_refresh_v1','marker':marker,'deduplicated_existing_marker':False,'actual_task_edit_exit_code':edit.returncode,'actual_refresh_exit_code':refresh.returncode,'status':record(status),'ROOT_actual_verification':record(root_review),'actual_sample_export':record(samples/'samples.json'),'sample_index_path':str(samples/'index.html'),'note':record(note_path),'canonical_marker_count_after_edit':1,'training_changes':False,'duplicate_prior_note':False}
+path=N/'actual_periodic92000_backlog_result.json';require(not path.exists(),'One new receipt');write_json(path,receipt);print(json.dumps({'receipt':record(path),'task_edit_exit':edit.returncode,'refresh_exit':refresh.returncode,'marker_unique':True}),flush=True)

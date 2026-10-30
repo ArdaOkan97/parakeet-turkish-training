@@ -1,0 +1,388 @@
+"""Inactive, metadata-only bridge for at most two diagnostic feature windows.
+
+This is a NEW producer protocol, not an alias for either fixed diagnostic
+feature helper. No audio/runtime/cache/sampler/optimizer operation lives here.
+DATA completeness is independent of native memory admission. A bridged plan
+is still provisional, and cannot make PCM/features or a committed frontier.
+"""
+from copy import deepcopy
+import hashlib
+import json
+import math
+from pathlib import Path
+import re
+import struct
+import threading
+
+ROOT = Path(r"E:\gpu_training_scratchpad")
+PROJECT = Path(__file__).resolve().parents[2]
+WEAK = "weak_label_continued_training"
+CLEANER = "cleaner_data_fine_tuning"
+PURPOSE = "bounded_full_data_multwindow_diagnostic"
+KIND = "FastMSS_phase_aware_feature_window_bridge_v1"
+SESSION_KIND = "FastMSS_bounded_full_DATA_multiwindow_session_v1"
+INPUT_KIND = "ASR18_phase_aware_provisional_production_window_plan_v1"
+DATA_KIND = "ASR18_validated_final_DATA_population_for_bounded_preparation_v1"
+CAPACITY = 512 * 1024**2
+METADATA = 8 * 1024**2
+PCM_CAPACITY = 128 * 1024**2
+PINS = {
+    "coordinator": ("bpe_production_window_coordinator_v4.py", "527ddd91b17d447269a3253dd5d3c4ad1762a1f79a93d3199ac989d127170b1a"),
+    "DATA_verifier": ("bpe_final_DATA_population_v1.py", "f8536cb791e1f2e66a5a4f7565c3b569bda067e01f77f296f908ed7d12e050ee"),
+    "adapter": ("fastmss_train_augmentation_v1.py", "1cbab261592846e971e1539781b1852bf9e328ef43fcded1af11691abd715ef2"),
+    "draw_helper": ("fastmss_ordered_draw_binding_v1.py", "cef78a6986918ec0b542a2f4d34f4f2f5aeadead358c823203846077891e7cd5"),
+    "policy": ("fastmss_broad_optin_v1.json", "07a7e671f47ff5ceceaa906a5371c7677ab21cc0079a4f164f661af114d3cbf7"),
+}
+
+
+def require(value, message):
+    if not value:
+        raise ValueError(message)
+
+
+def canonical(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+
+
+def digest(value):
+    return hashlib.sha256(canonical(value)).hexdigest()
+
+
+def same(left, right):
+    return left == right and digest(left) == digest(right)
+
+
+def integer(value, minimum=0, maximum=None):
+    require(type(value) is int and value >= minimum and (maximum is None or value <= maximum), "Exact bounded integer required")
+    return value
+
+
+def sha(value):
+    return type(value) is str and re.fullmatch("[0-9a-f]{64}", value) is not None
+
+
+def scoped(path, *, source=False):
+    path = Path(path).resolve()
+    require(path.is_relative_to(ROOT.resolve()) or (source and path.is_relative_to(PROJECT)), "E-only artifacts; existing project sources only")
+    return path
+
+
+def verify_file(pin, guard=lambda: None, *, maximum=None):
+    require(type(pin) is dict and set(pin) in ({"path", "bytes", "sha256"}, {"path", "bytes", "sha256", "mtime_ns"}) and sha(pin["sha256"]), "Exact file binding required")
+    integer(pin["bytes"], 1)
+    if maximum is not None:
+        require(pin["bytes"] <= maximum, "Bounded metadata/source required")
+    path = scoped(pin["path"], source=True)
+    before = path.stat()
+    require(str(path) == pin["path"] and before.st_size == pin["bytes"], "Pinned file path/size differs")
+    if "mtime_ns" in pin:
+        require(type(pin["mtime_ns"]) is int and before.st_mtime_ns == pin["mtime_ns"], "Pinned file timestamp differs")
+    value = hashlib.sha256()
+    with path.open("rb") as stream:
+        while block := stream.read(1024**2):
+            guard()
+            value.update(block)
+    after = path.stat()
+    require(value.hexdigest() == pin["sha256"] and (before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns), "Pinned file changed during verification")
+    return path
+
+
+def read_bound(pin, guard=lambda: None):
+    path = verify_file(pin, guard, maximum=2 * METADATA)
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            require(key not in result, "Duplicate metadata key")
+            result[key] = value
+        return result
+    def invalid(value):
+        raise ValueError("Nonfinite JSON value: " + value)
+    return json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique, parse_constant=invalid)
+
+
+def pin_source(pin, key, guard):
+    expected_name, expected_sha = PINS[key]
+    require(Path(pin["path"]).resolve() == Path(__file__).with_name(expected_name).resolve() and pin["sha256"] == expected_sha, "Frozen interface source differs: " + key)
+    verify_file(pin, guard, maximum=256 * 1024)
+
+
+def frozen_augmentation(identity, guard):
+    """Metadata only: never constructs an augmenter or reads audio assets."""
+    keys = {"kind", "adapter", "policy_file", "binding_helper", "policy_sha256", "registry_sha256", "numpy_version", "scipy_version", "draw_owner", "commit_owner"}
+    require(type(identity) is dict and set(identity) == keys and identity["kind"] == "FastMSS_production_draw_binding_v1", "Complete existing augmentation identity required")
+    for field, key in (("adapter", "adapter"), ("binding_helper", "draw_helper"), ("policy_file", "policy")):
+        pin_source(identity[field], key, guard)
+    require(identity["policy_sha256"] == "a05656b62108f6a767c791386bb1afa1206bfc241f620f1e55ba7a3239d1411c" and identity["registry_sha256"] == "70fd65adcc00ffd822558d05dd317e1ef746db7d514298d79f040fe9443dcdf1", "Frozen Gaussian/twoRIR pilot identity differs")
+    policy = read_bound(identity["policy_file"], guard)
+    registry = scoped(policy["registry_path"])
+    require(registry.stat().st_size <= 256 * 1024 and hashlib.sha256(registry.read_bytes()).hexdigest() == identity["registry_sha256"] and policy["phases"] == [WEAK] and policy["sample_rate"] == 16000 and policy["max_waveform_seconds"] == 120.0 and policy["noise_mode"] == "synthetic_gaussian", "Only exact existing broad/TR pilot metadata; no expanded asset library")
+    return deepcopy(identity)
+
+
+def actual0(pin, report, guard, *, owner):
+    proof = read_bound(pin, guard)
+    require(proof.get("owner") == owner, "Actual tool closure owner differs")
+    if proof.get("kind") == "ASR18_source_bound_actual_tool_exit_v1":
+        require(type(proof["actual_exit_code"]) is int and proof["actual_exit_code"] == 0 and same(proof["published_marker"], report), "Actual producer0 must bind exact published metadata")
+        pid = proof["native_PID"]
+    else:
+        require(proof.get("kind") == "ASR18_guarded_CPU_tool_completion_v1" and same(proof["report"], report), "Exact guarded metadata tool closure required")
+        require(type(proof["actual_native_exit_code"]) is int and proof["actual_native_exit_code"] == 0 and type(proof["actual_exec_tool_exit_code"]) is int and proof["actual_exec_tool_exit_code"] == 0, "Native and tool must actually close0")
+        monitor = read_bound(proof["guard_closure"], guard)
+        pid = proof["native_PID"]
+        require(monitor["pid"] == pid and type(monitor["actual_exit_code"]) is int and monitor["actual_exit_code"] == 0 and monitor["monitor_clean"] is True and monitor["monitor_joined"] is True and monitor["observed"]["monitor_error"] is None, "Actual clean joined producer monitor required")
+        integer(monitor["observed"]["samples"], 3)
+    integer(pid, 1)
+    require(type(proof.get("actual_tool_chunk_id")) is str and proof["actual_tool_chunk_id"], "Observed tool chunk required; marker alone is insufficient")
+    return proof
+
+
+def observed_native0(value, guard=lambda: None):
+    """Typed observed process or outer-tool result; scientific state verified separately."""
+    if value.get("kind") == "ASR18_owned_GPU_process_completion_v1":
+        from fastmss_owned_process_closure_v2 import verify
+        return verify(value, kind=value["kind"], owner="/root/memory_diagnosis", guard=guard)
+    require(value.get("owner") == "/root/memory_diagnosis" and type(value.get("actual_native_exit_code")) is int and value["actual_native_exit_code"] == 0, "Actual native-owner exit0 required before next window")
+    tool = value.get("actual_tool_exit_code", value.get("actual_exec_tool_exit_code"))
+    require(type(tool) is int and tool == 0 and type(value.get("actual_tool_chunk_id")) is str and value["actual_tool_chunk_id"], "Actual observed tool0 required; status marker insufficient")
+    integer(value.get("native_PID"), 1)
+
+
+def journal_prefix(value):
+    require(type(value) is dict and set(value) == {"path", "offset", "sha256"} and sha(value["sha256"]), "Exact caller-owned committed journal prefix required")
+    scoped(value["path"])
+    integer(value["offset"])
+    return value
+
+
+def observed_cleanup0(value, guard):
+    if value.get("kind") == "ASR18_owned_CPU_process_completion_v1":
+        from fastmss_owned_process_closure_v2 import verify
+        require(value.get("owner") in ("/root/memory_diagnosis", "/root/fastmss_integration"), "Owned cleanup parent required")
+        return verify(value, kind=value["kind"], owner=value["owner"], guard=guard)
+    if value.get("kind") == "ASR18_guarded_CPU_tool_completion_v1":
+        observed_native0(value)
+        monitor = read_bound(value["guard_closure"], guard)
+        pid = value["native_PID"]
+    else:
+        require(value.get("owner") in ("/root/memory_diagnosis", "/root/fastmss_integration") and type(value.get("actual_tool_exit_code")) is int and value["actual_tool_exit_code"] == 0 and type(value.get("actual_tool_chunk_id")) is str and value["actual_tool_chunk_id"], "Actual owned cleanup tool0 required")
+        monitor = read_bound(value["actual_guard"], guard)
+        pid = integer(value["actual_native_pid"], 1)
+    require(monitor["pid"] == pid and type(monitor["actual_exit_code"]) is int and monitor["actual_exit_code"] == 0 and monitor["monitor_joined"] is True and monitor["monitor_clean"] is True and monitor["observed"]["monitor_error"] is None, "Clean joined actual cleanup closure required")
+    integer(monitor["observed"]["samples"], 3)
+
+
+def validate_DATA(evidence, guard):
+    required = {"population", "population_actual0", "two_pass_metadata", "two_pass_actual0", "validated", "validated_actual0", "verifier_source"}
+    require(type(evidence) is dict and set(evidence) == required, "Whole DATA and two-pass actual closures required")
+    pin_source(evidence["verifier_source"], "DATA_verifier", guard)
+    raw = read_bound(evidence["population"], guard)
+    two = read_bound(evidence["two_pass_metadata"], guard)
+    data = read_bound(evidence["validated"], guard)
+    actual0(evidence["population_actual0"], evidence["population"], guard, owner="/root/cpu_data_preparation")
+    actual0(evidence["two_pass_actual0"], evidence["two_pass_metadata"], guard, owner="/root/cpu_data_preparation")
+    actual0(evidence["validated_actual0"], evidence["validated"], guard, owner="/root/memory_diagnosis")
+    require(raw["kind"] == "ASR18_final_data_population_for_bounded_preparation_v1" and two["kind"] == "ASR18_final_two_pass_population_metadata_v1" and data["kind"] == DATA_KIND, "Exact separate DATA-only schemas required")
+    require(data["passed"] is True and data["complete"] is True and same(data["source_verifier"], evidence["verifier_source"]), "Actual whole-DATA verifier source/result differs")
+    n, tokens = integer(data["retained_rows"], 1), integer(data["total_target_tokens"], 1)
+    require(tokens >= n, "Full positive target sum required")
+    for value in (raw, two, data):
+        require(value["complete"] is True and value["quality_filters"] == [] and value["language_filters"] == [], "Unfiltered complete population required")
+        for key in ("retained_rows", "label_rows", "frontier"):
+            require(type(value[key]) is int and value[key] == n, "Exact full final row/frontier denominator required")
+        require(type(value["total_target_tokens"]) is int and value["total_target_tokens"] == tokens and type(value["pass_count"]) is int and value["pass_count"] == 2, "Full target sum/two passes differ")
+        require(type(value["population_mean_U"]) in (int, float) and math.isfinite(value["population_mean_U"]) and value["population_mean_U"] == tokens / n, "Never infer final mean from a partial frontier")
+    domain = {"min": 1, "max": n, "contiguous_unique": True}
+    require(same(data["ordinal_domain"], domain) and same(two["ordinal_domain"], domain) and same(raw["bindings"], data["bindings"]), "Exact contiguous final source/label binding domain required")
+    for key in ("final_catalog", "final_labels", "completed_source_inventory", "declared_geometry_envelope", "declared_geometry_index"):
+        left, right = data["bindings"][key], two["bindings"][key]
+        require(same({k: left[k] for k in ("path", "bytes", "sha256")}, {k: right[k] for k in ("path", "bytes", "sha256")}), "DATA and ordering metadata bind different source assets")
+    declared = data["declared_geometry"]
+    require(declared["passed"] is True and declared["TRAIN_admitted"] is False and declared["native_allocation_or_encoder_fit_approved"] is False and declared["scalar_audit"]["population"]["retained_rows"] == n and declared["scalar_audit"]["population"]["total_target_tokens"] == tokens, "Complete DATA-only declared geometry required, never native fit inference")
+    require(data["production_enabled"] is False and data["TRAIN_admitted"] is False and data["native_envelope_or_forecast_approved"] is False and data["heldout_reference_PCM_binding_complete"] is True and data["full_corpus_PCM_decode_validation_claimed"] is False and data["sampler_seed_or_frontier_chosen_by_verifier"] is False, "DATA preparation is not native admission or sampler selection")
+    require(type(data["actual_optimizer_updates"]) is int and data["actual_optimizer_updates"] == 0, "DATA never commits Adam")
+    return data
+
+
+def full_targets(row):
+    language = row["language"]
+    ids = row["tr_metadata_labels"] if language == "tr" else row["clean_target_ids"]
+    require(type(ids) is list and ids and all(type(v) is int and 0 <= v < (8711 if language == "tr" else 8193) and v != 8192 for v in ids), "Every original target ID required; no cap or prefix")
+    require(type(row["target_tokens"]) is int and row["target_tokens"] == len(ids), "Full row target count differs")
+    return ids, hashlib.sha256(b"".join(struct.pack("<I", v) for v in ids)).hexdigest()
+
+
+def normalize_updates(plan, *, population, guard=lambda: None):
+    """Pure metadata transformation; not DATA validation or preparation admission."""
+    integer(population, 1)
+    require(plan["kind"] == INPUT_KIND and plan["production_enabled"] is False and plan["phase"] in (WEAK, CLEANER), "Exact inactive phase-aware coordinator plan required")
+    phase = plan["phase"]
+    for key in ("actual_optimizer_updates", "actual_authoritative_draws_consumed"):
+        require(type(plan[key]) is int and plan[key] == 0, "Prepared plan cannot claim a commit")
+    require(plan["actual_replay_frontiers_advanced"] is False and plan["source_optimizer_or_RNG_reset"] is False and plan["capacity_bytes"] == CAPACITY and plan["metadata_reserve_bytes"] == METADATA, "Unchanged clocks/RNG and hard capacities required")
+    updates = plan["updates"]
+    require(type(updates) is list and 1 <= len(updates) <= 20 and sha(plan["initial_sampler_sha256"]), "One bounded nonempty window required")
+    initial = integer(plan["initial_committed_updates"])
+    final = plan["final_private_planning_sampler"]
+    require(final["kind"] == "ASR18_two_broad_then_one_cleaner_schedule_v1" and final["broad_cursor"]["population"] == population and type(final["broad_cursor"]["population"]) is int and final["broad_cursor"]["passes"] == 2 and type(final["broad_cursor"]["passes"]) is int and final["cleaner_cursor"]["population"] == 352768 and type(final["cleaner_cursor"]["population"]) is int and final["cleaner_cursor"]["passes"] == 1 and type(final["cleaner_cursor"]["passes"]) is int, "Private plan must preserve full broad and exact original cleaner populations/passes")
+    integer(final["broad_cursor"]["draws"], 0, 2 * population)
+    integer(final["cleaner_cursor"]["draws"], 0, 352768)
+    require(type(final["population_mean_U"]) is dict and set(final["population_mean_U"]) == {WEAK, CLEANER} and all(type(v) in (int, float) and math.isfinite(v) and v > 0 for v in final["population_mean_U"].values()), "Exact positive typed phase means required; no bool mean")
+    require(final["cleaner_cursor"]["draws"] == 0 or final["broad_cursor"]["draws"] == 2 * population, "No cleaner phase before both actual broad pass frontiers")
+    require(type(final["carried_replay"]["updates"]) is int and final["carried_replay"]["updates"] == initial + len(updates) and final["population_mean_U"][CLEANER] == 11972886 / 352768, "Carried replay clock/full cleaner target denominator differs")
+    previous, result, total = plan["initial_sampler_sha256"], [], 0
+    for index, original in enumerate(updates):
+        guard()
+        require(original["local_update_index"] == index and type(original["local_update_index"]) is int and type(original["global_update"]) is int and original["global_update"] == initial + index + 1 and original["phase"] == phase and original["prepared_is_committed"] is False, "Ordered phase/local/global update identity differs")
+        require(type(original["batch_id"]) is str and original["batch_id"] == "update_" + str(original["global_update"]), "Actual caller global batch ID required")
+        require(all(sha(original[k]) for k in ("native_transaction_sha256", "before_sampler_sha256", "after_sampler_sha256")) and original["before_sampler_sha256"] == previous, "Contiguous exact sampler/transaction hash chain required")
+        tr, replay, rows, contexts, draws = (original[k] for k in ("TR_draws", "replay_rows", "rows", "contexts", "draws"))
+        require(all(type(v) is list for v in (tr, replay, rows, contexts, draws)) and 1 <= len(tr) <= 14 and len(replay) == 2 and len(rows) == len(contexts) == len(draws) == len(tr) + 2 and len(original["TR_identity"]) == len(tr), "Full1..14 TR tail plus exactly2 original carried replay required")
+        require([v["language"] for v in rows[:-2]] == ["tr"] * len(tr) and rows[-2]["language"] in ("en", "es", "it", "fr", "de") and rows[-1]["language"] == "pt", "Protected old-five/PT replay ordering differs")
+        require(len({(v["epoch"], v["draw_index"]) for v in contexts}) == len(contexts), "Duplicate per-update draw context")
+        entries = []
+        for row_index, (row, context, draw) in enumerate(zip(rows, contexts, draws)):
+            require(type(row) is dict and type(context) is dict and set(context) == {"source_id", "language", "epoch", "draw_index", "phase", "split"} and context["phase"] == phase and context["split"] == "train", "Explicit original TRAIN phase/context required; no DEV/TEST/teacher routing")
+            integer(context["epoch"]); integer(context["draw_index"])
+            require(type(row["source_id"]) is str and row["source_id"] and row["source_id"] == context["source_id"] == draw["source_id"] and row["language"] == context["language"] == draw["language"] and all(same(draw[k], context[k]) for k in ("epoch", "draw_index", "phase")), "Original row/source/language/order/draw differs")
+            require(type(row["text"]) is str, "Original supplied transcript required")
+            ids, ids_sha = full_targets(row)
+            is_tr = row_index < len(tr)
+            require(row.get("augmentation_role", "student_tr" if is_tr else "replay") == ("student_tr" if is_tr else "replay"), "Teacher/evaluation rows cannot enter an augmentation/student input route")
+            if "audio_draw_context" in row:
+                require(same(row["audio_draw_context"], context), "Existing immutable row context differs; never overwrite it")
+            if is_tr:
+                identity, source_draw = original["TR_identity"][row_index], tr[row_index]
+                integer(source_draw["ordinal"], 1, population if phase == WEAK else 352768)
+                require(identity["source_id"] == row["source_id"] and identity["language"] == "tr" and identity["ordinal"] == source_draw["ordinal"] == draw["ordinal"] and all(same(source_draw[k], context[k]) for k in ("epoch", "draw_index")), "Exact full-population TR ordinal/draw identity differs")
+                require(context["epoch"] in ((0, 1) if phase == WEAK else (0,)), "No extra corpus pass")
+                if row_index:
+                    require(context["epoch"] == contexts[row_index - 1]["epoch"] and context["draw_index"] == contexts[row_index - 1]["draw_index"] + 1, "A native update cannot cross or drop a pass tail")
+                if phase == CLEANER:
+                    require(type(row.get("cleaner_original_ordinal")) is int and row["cleaner_original_ordinal"] == draw["ordinal"], "Original cleaner ordinal required")
+            else:
+                require(draw["ordinal"] is None and row["source_id"] == replay[row_index - len(tr)]["source_id"] and row["language"] == replay[row_index - len(tr)]["language"] and context["epoch"] == tr[-1]["epoch"] and context["draw_index"] == tr[-1]["draw_index"] + 1 + row_index - len(tr), "Original carried replay cannot be selected/reseeded by bridge")
+            entries.append({"row_index": row_index, "original_row_sha256": digest(row), "source_id": row["source_id"], "language": row["language"], "context": deepcopy(context), "full_target_ids": deepcopy(ids), "target_ids_u32_sha256": ids_sha, "raw_text_sha256": hashlib.sha256(row["text"].encode("utf-8")).hexdigest(), "role": "student_tr" if is_tr else "replay", "route": "frozen_weak_TR_augmentation_CPU_only" if is_tr and phase == WEAK else "direct_original_clean", "independent_clean_PCM_still_required": True})
+        size = integer(original["feature_bytes_upper_bound"], 1, CAPACITY - METADATA)
+        total += size
+        stage_population = population if phase == WEAK else 352768
+        ends_pass = (tr[-1]["draw_index"] + 1) % stage_population == 0
+        result.append({"update_index": index, "global_update": original["global_update"], "phase": phase, "batch_id": original["batch_id"], "coordinator_update": deepcopy(original), "coordinator_update_sha256": digest(original), "rows": entries, "feature_bytes_upper_bound": size, "prepared_is_committed": False, "ends_population_pass": ends_pass, "mandatory_fixed_DEV_checkpoint_barrier_after_update": ends_pass})
+        previous = original["after_sampler_sha256"]
+    require(total == plan["planned_payload_upper_bound_bytes"] and total + METADATA <= CAPACITY and digest(plan["final_private_planning_sampler"]) == previous, "Full planned feature capacity/final sampler mismatch")
+    require(len(canonical(result)) <= METADATA, "Bounded copied full metadata; never truncate or exclude a row")
+    return result
+
+
+def bridge_plan(coordinator_plan_binding, *, DATA_evidence, session_binding, window_index, prior_window_boundary=None, verify_prior_boundary=None, guard=lambda: None):
+    require(threading.current_thread() is threading.main_thread(), "Serial immutable bridge only")
+    session = read_bound(session_binding, guard)
+    require(session["kind"] == SESSION_KIND and session["purpose"] == PURPOSE and session["production_enabled"] is False and session["maximum_windows"] == 2 and type(session["maximum_windows"]) is int and session["maximum_native_updates"] == 40 and type(session["maximum_native_updates"]) is int, "Only explicit bounded diagnostic session; no production arm")
+    integer(window_index, 0, 1)
+    pin_source(session["coordinator_source"], "coordinator", guard)
+    augmentation_identity = frozen_augmentation(session["augmentation_identity"], guard)
+    read_bound(session["scientific_source_state"], guard)
+    require(session["preserve_original_all207_threeAdam_allRNG_and_replay_lineage"] is True, "Native source-state carry is mandatory; bridge never initializes or resets it")
+    require(session["DATA_evidence_sha256"] == digest(DATA_evidence), "Session bound to another DATA result")
+    data = validate_DATA(DATA_evidence, guard)
+    plan = read_bound(coordinator_plan_binding, guard)
+    require(same(plan["finalized_population"], DATA_evidence["population"]), "Coordinator and DATA verifier use different populations")
+    normalized = normalize_updates(plan, population=data["retained_rows"], guard=guard)
+    require(plan["final_private_planning_sampler"]["population_mean_U"][WEAK] == data["population_mean_U"], "Plan uses a partial or different broad target denominator")
+    initial = integer(session["initial_optimizer_updates"])
+    integer(session["maximum_native_updates"], 1, 40)
+    require(sha(session["initial_sampler_sha256"]) and plan["initial_committed_updates"] + len(normalized) <= initial + 40, "Never silently extend the finite native caller budget")
+    if window_index == 0:
+        require(prior_window_boundary is None and plan["initial_committed_updates"] == initial and plan["initial_sampler_sha256"] == session["initial_sampler_sha256"], "First window preserves exact original source state")
+    else:
+        require(prior_window_boundary is not None and callable(verify_prior_boundary), "Window2 requires actual final coherent checkpoint and retired predecessor")
+        boundary = read_bound(prior_window_boundary, guard)
+        require(boundary["kind"] == "FastMSS_actual_coherent_multiwindow_boundary_v1" and same(boundary["session"], session_binding) and boundary["completed_window_index"] == 0 and type(boundary["completed_window_index"]) is int, "Exact prior same-session window boundary required")
+        prior = read_bound(boundary["bridge"], guard)
+        require(prior["kind"] == KIND and prior["window_index"] == 0 and same(prior["session"], session_binding) and same(prior["DATA_evidence"], DATA_evidence), "No switched DATA/session/phase provenance")
+        require(boundary["committed_window_updates"] == len(prior["updates"]) and type(boundary["committed_window_updates"]) is int and boundary["optimizer_updates"] == plan["initial_committed_updates"] == prior["initial_committed_updates"] + len(prior["updates"]) and boundary["sampler_state_sha256"] == plan["initial_sampler_sha256"] == prior["final_sampler_sha256"], "Window2 must continue exact actual prior prefix")
+        pointer = read_bound(boundary["coherent_checkpoint_pointer"], guard)
+        require(("actual_native_closed" in boundary) != ("resident_native_boundary" in boundary), "Exactly one truthful actual exit or live idle boundary")
+        if "resident_native_boundary" in boundary:
+            from fastmss_owned_process_closure_v2 import verify_resident_idle
+            verify_resident_idle(read_bound(boundary["resident_native_boundary"], guard), pointer=pointer, proof_binding=boundary["resident_native_boundary"], phase=prior["phase"], guard=guard)
+        else:
+            observed_native0(read_bound(boundary["actual_native_closed"], guard), guard)
+        require(pointer["kind"] == "ASR18_production_window_completed_checkpoint_pointer_v2" and pointer["all_window_updates_committed"] is True and pointer["committed_updates"] == boundary["optimizer_updates"] and type(pointer["committed_updates"]) is int and pointer["committed_window_updates"] == len(prior["updates"]) and type(pointer["committed_window_updates"]) is int and pointer["writer_returned_and_payload_verified"] is True, "Only final whole-window returned coherent checkpoint may release next window")
+        scientific = pointer["identity"]["window"]
+        require(scientific["plan_sha256"] == prior["coordinator_plan_sha256"] and scientific["last_transaction_sha256"] == prior["updates"][-1]["coordinator_update"]["native_transaction_sha256"] and scientific["sampler_state_sha256"] == boundary["sampler_state_sha256"] == pointer["sampler_state_sha256"], "Final checkpoint identity must bind exact prior plan/last transaction/sampler")
+        semantic = pointer["saved_semantic_state_verified"]
+        require(semantic["passed"] is True and semantic["saved_identity_frontier_sampler_and_journal_verified_before_publication"] is True and semantic["identity_sha256"] == digest(pointer["identity"]) and semantic["optimizer_updates"] == pointer["committed_updates"] and semantic["sampler_state_sha256"] == pointer["sampler_state_sha256"] and same(semantic["journal_prefix"], pointer["journal_prefix"]), "Saved actual semantic proof required, not pointer counters alone")
+        metadata = read_bound(pointer["checkpoint"], guard)
+        require(same(metadata["payload"], pointer["payload"]), "Final pointer and immutable returned checkpoint payload differ")
+        cleanup_actual = read_bound(boundary["owned_cleanup_actual_closed"], guard)
+        observed_cleanup0(cleanup_actual, guard)
+        cleanup = read_bound(boundary["owned_cleanup_receipt"], guard)
+        archived = read_bound(boundary["preserved_metadata"], guard)
+        require(cleanup["passed"] is True and cleanup["feature_files_only_deleted"] is True and cleanup["original_audio_source_checkpoint_journal_untouched"] is True and same(cleanup["preserved_metadata"], boundary["preserved_metadata"]) and same(archived["owner_binding"], cleanup["owner"]) and same(archived["manifest_binding"], cleanup["manifest"]), "Actual exact owned retirement with durable original metadata required")
+        require(type(cleanup["removed_exact_owned_files"]) is list and 0 < len(cleanup["removed_exact_owned_files"]) <= 704, "Exact finite owned retirement list required")
+        require(boundary["originals_checkpoints_and_journals_untouched"] is True and boundary["owned_feature_window_retired"] is True and verify_prior_boundary(deepcopy(boundary)) is True, "Caller must verify actual source/state/closure/cleanup; existence or a dormant supervisor is insufficient")
+    result = {"kind": KIND, "purpose": PURPOSE, "production_enabled": False, "diagnostic_only": True, "bridge_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "coordinator_plan": coordinator_plan_binding, "coordinator_plan_sha256": digest(plan), "session": session_binding, "window_index": window_index, "DATA_evidence": deepcopy(DATA_evidence), "DATA_rows": data["retained_rows"], "DATA_full_target_tokens": data["total_target_tokens"], "DATA_population_mean_U": data["population_mean_U"], "augmentation_identity": augmentation_identity, "scientific_source_state": session["scientific_source_state"], "phase": plan["phase"], "initial_committed_updates": plan["initial_committed_updates"], "initial_sampler_sha256": plan["initial_sampler_sha256"], "final_sampler_sha256": normalized[-1]["coordinator_update"]["after_sampler_sha256"], "updates": normalized, "prior_window_boundary": prior_window_boundary, "maximum_feature_window_bytes": CAPACITY, "metadata_reserve_bytes": METADATA, "raw_PCM_capacity_bytes": PCM_CAPACITY, "raw_PCM_maximum_jobs": 2, "feature_window_lock_required": True, "actual_optimizer_updates": 0, "actual_authoritative_draws_consumed": 0, "actual_replay_frontiers_advanced": False, "actual_clean_PCM_or_features_ready": False, "native_forecast_approved": False, "lifecycle_contract": {"NEW_phase_aware_sink_required": True, "must_not_spoof_fixed_diagnostic_plan_kind": True, "actual_closed0_before_GPU": True, "consume_once_ordered_rows": True, "prepared_never_commits": True, "intermediate_checkpoint_keeps_future_features": True, "cleanup_only_final_coherent_or_explicit_discard_with_actual_children_closed": True, "archive_small_metadata_before_exact_owned_deletion": True, "no_original_or_checkpoint_or_journal_deletion": True, "teacher_replay_DEV_TEST_clean": True, "over120s_retained_clean_via_frozen_policy": True, "runtime_whole_audio_geometry_heldout_check_before_consumed_draw": True}}
+    result['lifecycle_contract']['persistence_idle_is_not_GPU_restore_or_process_exit'] = True
+    result['lifecycle_contract']['deferred_exact_restore_obligation_must_survive_until_overall_diagnostic_pass'] = True
+    require(len(canonical(result)) <= 2 * METADATA, "Bounded bridge metadata; no whole-corpus order or audio pool")
+    return result
+
+
+def actual_reference0(pin, report, guard):
+    """Independent PCM alone may use genuine inner owned-Popen completion."""
+    proof = read_bound(pin, guard)
+    if proof.get("kind") == "ASR18_owned_CPU_process_completion_v1":
+        from fastmss_owned_process_closure_v2 import verify
+        return verify(proof, kind=proof["kind"], owner="/root/memory_diagnosis", report=report, guard=guard)
+    return actual0(pin, report, guard, owner="/root/memory_diagnosis")
+
+def bind_verified_update_inputs(bridge_binding, update_index, *, independent_PCM_proof, actual_closed0, guard=lambda: None):
+    """Attach independent original clean PCM/full-target proofs; no audio read."""
+    bridge = read_bound(bridge_binding, guard)
+    require(bridge["kind"] == KIND and bridge["purpose"] == PURPOSE and bridge["production_enabled"] is False and bridge["bridge_source_sha256"] == hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "Exact unarmed source-bound phase-aware bridge required")
+    integer(update_index, 0, len(bridge["updates"]) - 1)
+    update = bridge["updates"][update_index]
+    proof = read_bound(independent_PCM_proof, guard)
+    actual_reference0(actual_closed0, independent_PCM_proof, guard)
+    require(proof["kind"] == "FastMSS_phase_aware_independent_clean_PCM_references_v1" and proof["passed"] is True and same(proof["bridge"], bridge_binding) and type(proof["update_index"]) is int and proof["update_index"] == update_index and proof["phase"] == bridge["phase"] and proof["actual_optimizer_updates"] == 0 and type(proof["actual_optimizer_updates"]) is int and proof["sampler_journal_frontier_advanced"] is False, "Complete independently actual0 provisional PCM proof required")
+    references = proof["references"]
+    require(type(references) is list and len(references) == len(update["rows"]), "No missing/extra/duplicate or truncated source proof")
+    for entry, reference in zip(update["rows"], references):
+        require(reference["original_row_sha256"] == entry["original_row_sha256"] and same(reference["context"], entry["context"]) and same(reference["full_target_ids"], entry["full_target_ids"]) and reference["target_ids_u32_sha256"] == entry["target_ids_u32_sha256"], "Independent ordered source/fulltarget/phase proof differs")
+        audio = reference["expected_audio"]
+        require(type(audio) is dict and set(audio) == {"sample_rate", "samples", "waveform_sha256"} and type(audio["sample_rate"]) is int and audio["sample_rate"] == 16000 and sha(audio["waveform_sha256"]), "Exact whole original mono float32 16k PCM identity required")
+        integer(audio["samples"], 1)
+        require(reference["whole_original_clip"] is True and reference["augmentation_applied"] is False and reference["actual_geometry_and_heldout_checked"] is True, "Original full audio/heldout/declared-geometry proof required, never metadata duration inference")
+        sources = reference["original_source_files"]
+        require(type(sources) is list and 1 <= len(sources) <= 4, "Independent whole original source file identities required")
+        for source in sources:
+            require(type(source) is dict and set(source) in ({"path", "bytes", "sha256"}, {"path", "bytes", "sha256", "mtime_ns"}) and sha(source["sha256"]), "Exact independently verified source file binding required")
+            integer(source["bytes"], 1)
+            path = scoped(source["path"], source=True)
+            require(path.stat().st_size == source["bytes"] and ("mtime_ns" not in source or type(source["mtime_ns"]) is int and path.stat().st_mtime_ns == source["mtime_ns"]), "Original source signature changed after independent PCM proof")
+        if entry["role"] == "replay":
+            cache = reference["genuine_teacher_feature_cache"]
+            require(type(cache) is dict and cache["source_id"] == entry["source_id"] and cache["target_ids_u32_sha256"] == entry["target_ids_u32_sha256"] and cache["clean_waveform_sha256"] == audio["waveform_sha256"] and sha(cache["genuine_feature_sha256"]) and reference["teacher_or_replay_waveform_changed"] is False, "Original genuine carried replay cache/targets stay clean")
+    return {"kind": "FastMSS_phase_aware_feature_update_input_binding_v1", "bridge": bridge_binding, "update_index": update_index, "coordinator_update_sha256": update["coordinator_update_sha256"], "independent_clean_PCM": independent_PCM_proof, "independent_actual0": actual_closed0, "phase": bridge["phase"], "prepared_is_committed": False, "actual_features_ready": False, "sampler_journal_frontier_advanced": False}
+
+
+def validate_resume(bridge_binding, resume_binding, *, verify_checkpoint, guard=lambda: None):
+    """No arbitrary skip: native caller independently attests coherent restore."""
+    bridge = read_bound(bridge_binding, guard)
+    resume = read_bound(resume_binding, guard)
+    require(bridge["kind"] == KIND and bridge["purpose"] == PURPOSE and bridge["production_enabled"] is False and bridge["bridge_source_sha256"] == hashlib.sha256(Path(__file__).read_bytes()).hexdigest() and resume["kind"] == "FastMSS_phase_aware_feature_prefix_resume_v1" and same(resume["bridge"], bridge_binding) and resume["phase"] == bridge["phase"] and callable(verify_checkpoint), "Explicit phase/source/checkpoint-bound prefix resume required")
+    count = integer(resume["committed_window_updates"], 1, len(bridge["updates"]))
+    update = bridge["updates"][count - 1]["coordinator_update"]
+    require(resume["optimizer_updates"] == bridge["initial_committed_updates"] + count and type(resume["optimizer_updates"]) is int and resume["last_transaction_sha256"] == update["native_transaction_sha256"] and resume["sampler_state_sha256"] == update["after_sampler_sha256"], "No stale/wrong-phase/native-prefix resume")
+    prefix = journal_prefix(resume["journal_prefix"])
+    pointer = read_bound(resume["coherent_checkpoint_pointer"], guard)
+    require(pointer["kind"] == "ASR18_production_window_completed_checkpoint_pointer_v2" and pointer["writer_returned_and_payload_verified"] is True and pointer["committed_updates"] == resume["optimizer_updates"] and type(pointer["committed_updates"]) is int and pointer["committed_window_updates"] == count and type(pointer["committed_window_updates"]) is int and same(pointer["checkpoint"], resume["checkpoint"]) and same(pointer["journal_prefix"], prefix), "Prefix resume requires exact returned coherent pointer, not arbitrary checkpoint existence")
+    window = pointer["identity"]["window"]
+    require(window["plan_sha256"] == bridge["coordinator_plan_sha256"] and window["committed_window_updates"] == count and type(window["committed_window_updates"]) is int and window["last_transaction_sha256"] == resume["last_transaction_sha256"] and window["sampler_state_sha256"] == resume["sampler_state_sha256"], "Resume identity binds another plan/window/phase/source prefix")
+    semantic = pointer["saved_semantic_state_verified"]
+    require(semantic["passed"] is True and semantic["identity_sha256"] == digest(pointer["identity"]) and semantic["optimizer_updates"] == resume["optimizer_updates"] and semantic["sampler_state_sha256"] == resume["sampler_state_sha256"] and same(semantic["journal_prefix"], prefix), "Saved identity/state/journal semantic verification required before resume")
+    metadata = read_bound(resume["checkpoint"], guard)
+    require(same(metadata["payload"], pointer["payload"]), "Exact retained coherent checkpoint payload binding required")
+    require(verify_checkpoint(deepcopy(resume)) is True, "Actual native owner must verify restored all207/Adam/RNG/journal/source identity")
+    return {"next_update_index": count, "phase": bridge["phase"], "retain_all_window_files": True, "sampler_journal_frontier_advanced": False}

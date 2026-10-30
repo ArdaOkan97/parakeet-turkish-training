@@ -1,0 +1,130 @@
+"""Real owned native wait0 and exact checkpoint continuation; no hotpath supervisor."""
+import argparse,json,os,subprocess,sys,time
+from pathlib import Path
+import psutil
+P=Path(__file__).resolve().parents[2];S=P/'outputs/parakeet_turkish';sys.path[:0]=[str(S),str(P/'work/research')]
+from atomic_io_retry_v1 import read_json,write_json
+from bpe_broad_audio_v1 import record,require
+from asr18_memory_diagnosis_v2 import storage
+
+
+def main(a):
+    storage();require(sys.flags.utf8_mode==1 and os.environ.get('PYTHONUTF8')=='1','UTF8 before owner entry')
+    psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+    review=read_json(a.review);driver=P/'work/research/run_ASR18_BPE9223_resident_RAM_training_v18.py'
+    require(review['accepted'] is True and review['reviewer']=='/root'
+        and review['driver_source']==record(driver)
+        and review['RAM_native_source']==record(S/'asr18_BPE9223_grouped_RAM_native_v1.py')
+        and review['CPU_source']==record(S/'fastmss_resident_feature_stream_v7.py')
+        and review['DEV_helper_source']==record(S/'asr18_resident_serial350_DEV_v2.py')
+        and review['source_configuration']==record(a.configuration)
+        and review['initial_checkpoint']==record(a.pointer) and review['latest_failure']==record(a.latest_failure),
+        'Exact one ROOT source/science/real CPU output execution binding')
+    require(a.queue_bytes==review['bounded_RAM_queue_bytes']==268435456 and review['periodic_DEV_interval_updates']==4000,
+        'Unchanged bounded queue and periodic cadence')
+    configuration=read_json(a.configuration);policy=configuration['private_scalar_prefetch_policy']
+    require(review['private_scalar_prefetch_source']==policy['source']==record(S/'asr18_BPE9223_private_scalar_prefetch_v1.py')
+        and review['private_scalar_prefetch_actual_CPU_review']==policy['actual_CPU_control_review']
+        and record(policy['actual_CPU_control_review']['path'])==policy['actual_CPU_control_review']
+        and review['additional_prefetch_host_reservation_bytes']==policy['additional_host_reservation_bytes']==268435456,
+        'Exact integrated helper, finite equality review and full added host reservation')
+    require(review['periodic_DEV_CPU_quiescence_policy']==configuration['periodic_DEV_CPU_quiescence_policy']
+        and configuration['periodic_DEV_CPU_quiescence_policy']['source']==record(S/'asr18_resident_periodic_CPU_quiescence_v2.py'),
+        'Exact reviewed periodic CPU phase scheduling; unchanged DEV and full reservations')
+    if a.prior_process is not None:
+        require(a.abnormal_resume is None and a.original_interval_resume is None and a.source_transition_resume is None and a.DEV_frontend_resume is None and a.DEV_admission_resume is None and a.periodic_quiescence_resume is None,'New normal-boundary entry requires genuine prior wait0, not historical failure relabel')
+    elif a.periodic_quiescence_resume is not None:
+        require(a.abnormal_resume is None and a.original_interval_resume is None and a.source_transition_resume is None and a.DEV_frontend_resume is None and a.DEV_admission_resume is None
+            and review['periodic_quiescence_resume']==record(a.periodic_quiescence_resume)
+            and a.start_invocation==review['initial_owner_invocation']==14,
+            'Exact saved140000 helper1 failure is not normal0')
+    elif a.DEV_admission_resume is not None:
+        require(a.abnormal_resume is None and a.original_interval_resume is None and a.source_transition_resume is None and a.DEV_frontend_resume is None
+            and review['DEV_admission_resume']==record(a.DEV_admission_resume)
+            and a.start_invocation==review['initial_owner_invocation']==13,
+            'Exact saved136000 prospective DEV failure is not normal0')
+    elif a.abnormal_resume is not None:
+        require(a.original_interval_resume is None and a.source_transition_resume is None and a.DEV_frontend_resume is None
+            and review['headroom_resume']==record(a.abnormal_resume)
+            and review['resource_scheduling_policy']==configuration['resident_RAM_resource_scheduling_policy']
+            and a.start_invocation==review['initial_owner_invocation']==11,
+            'Exact reviewed changed-workload abnormal133137 saved133000 entry, never normal0')
+    elif a.original_interval_resume is not None:
+        require(a.source_transition_resume is None and a.DEV_frontend_resume is None
+            and review['original_interval_resume']==record(a.original_interval_resume)
+            and review['original_clip_geometry_overlay']==configuration['original_clip_geometry_overlay']
+            and a.start_invocation==review['initial_owner_invocation']==12,
+            'Exact reviewed source-bound physical geometry correction and actual abnormal134400 predecessor')
+    elif a.source_transition_resume is not None:
+        require(a.DEV_frontend_resume is None and review['source_transition_resume']==record(a.source_transition_resume)
+            and review['source_transition_validator']==record(S/'asr18_resident_source_transition_v2.py'),
+            'Exact reviewed actual intentional TOOL1 transition, no normal0 fiction')
+    else:
+        require(a.DEV_frontend_resume is not None and review['DEV_frontend_resume']==record(a.DEV_frontend_resume),
+            'Only the already-supported typed4000 failure lane when no genuine prior process0')
+    branch=Path(a.branch).resolve();control=Path(a.output).resolve()
+    if a.abnormal_resume is not None:
+        from run_ASR18_BPE9223_resident_RAM_training_v18 import checked_headroom_resume
+        checked_headroom_resume(record(a.abnormal_resume),base=configuration,folder=branch,pointer_pin=record(a.pointer))
+    if a.original_interval_resume is not None:
+        from run_ASR18_BPE9223_resident_RAM_training_v18 import checked_original_interval_resume
+        checked_original_interval_resume(record(a.original_interval_resume),base=configuration,folder=branch,pointer_pin=record(a.pointer))
+    if a.source_transition_resume is not None:
+        from asr18_resident_source_transition_v2 import checked_source_transition_resume
+        checked_source_transition_resume(record(a.source_transition_resume),base=configuration,folder=branch,pointer_pin=record(a.pointer))
+    if a.DEV_admission_resume is not None:
+        from run_ASR18_BPE9223_resident_RAM_training_v18 import checked_DEV_admission_resume
+        checked_DEV_admission_resume(record(a.DEV_admission_resume),base=configuration,folder=branch,pointer_pin=record(a.pointer))
+    if a.periodic_quiescence_resume is not None:
+        from run_ASR18_BPE9223_resident_RAM_training_v18 import checked_periodic_quiescence_resume
+        checked_periodic_quiescence_resume(record(a.periodic_quiescence_resume),base=configuration,folder=branch,pointer_pin=record(a.pointer))
+    require(control.is_relative_to(Path(r'E:\gpu_training_scratchpad')) and not control.exists(),'Fresh E loop records');control.mkdir()
+    pointer=Path(a.pointer);prior=None if a.prior_process is None else Path(a.prior_process);invocation=a.start_invocation;root_pid=os.getpid()
+    env=os.environ.copy();env['CUDA_VISIBLE_DEVICES']='0';env['PYTHONUTF8']='1'
+    for key in ('OMP_NUM_THREADS','MKL_NUM_THREADS','OPENBLAS_NUM_THREADS','NUMEXPR_NUM_THREADS'):env[key]='1'
+    while True:
+        rows=subprocess.check_output(['nvidia-smi','--query-gpu=memory.total,memory.free','--format=csv,noheader,nounits'],text=True).strip().splitlines()
+        require(len(rows)==1,'Exactly one admitted training GPU')
+        total,free=[int(v.strip())*1024**2 for v in rows[0].split(',')]
+        require(total>=17000000000 and free>=14000000000,'Physical GPU capacity plus unchanged12GB allocator/2GBfree reserve')
+        command=[str(P/'work/nemo-native-env-v2/Scripts/python.exe'),'-X','utf8','-B',str(driver),
+            '--configuration',a.configuration,'--stream-configuration',a.configuration,'--pointer',str(pointer),
+            '--latest-failure',a.latest_failure,'--folder',str(branch),'--invocation',str(invocation),
+            '--queue-bytes',str(a.queue_bytes),'--maximum-wall-seconds','86400']
+        if prior is not None:command+=['--prior-process',str(prior)]
+        elif invocation==a.start_invocation:
+            if a.periodic_quiescence_resume is not None:command+=['--periodic-quiescence-resume',a.periodic_quiescence_resume]
+            elif a.DEV_admission_resume is not None:command+=['--DEV-admission-resume',a.DEV_admission_resume]
+            elif a.abnormal_resume is not None:command+=['--abnormal-resume',a.abnormal_resume]
+            elif a.original_interval_resume is not None:command+=['--original-interval-resume',a.original_interval_resume]
+            elif a.source_transition_resume is not None:command+=['--source-transition-resume',a.source_transition_resume]
+            else:command+=['--DEV-frontend-resume',a.DEV_frontend_resume]
+        if invocation==1:command+=['--validation-stop','460']
+        log=control/('native_'+str(invocation).zfill(6)+'.log')
+        with log.open('xb')as stream:
+            child=subprocess.Popen(command,cwd=P,env=env,stdout=stream,stderr=subprocess.STDOUT)
+            launcher={'pid':child.pid,'create_time':psutil.Process(child.pid).create_time(),'ppid':root_pid}
+            write_json(control/'current_child.json',{'invocation':invocation,'launcher':launcher,'command':command,
+                'log':str(log),'branch':str(branch),'source_checkpoint':record(pointer)})
+            print(json.dumps({'actual_native_launch':launcher,'invocation':invocation,'log':str(log),'saved_source_updates':read_json(pointer)['committed_updates']}),flush=True)
+            code=child.wait()
+        inv=branch/'invocations'/('owner_'+str(invocation).zfill(6))
+        require(code==0,'Actual native process failed; preserve all state/logs, no unchanged retry')
+        report=read_json(inv/'normal_completion.json');who=report['producer']
+        try:alive=abs(psutil.Process(who['pid']).create_time()-who['create_time'])<.001
+        except psutil.NoSuchProcess:alive=False
+        require(not alive and report['passed'] is True and report['all_live_updates_saved'] is True,'Real normal0 and all live updates coherently saved')
+        closure={'kind':'ASR18_actual_resident_RAM_GPU_process_wait0_v1','actual_Popen_wait_code':code,'launcher':launcher,
+            'producer':who,'producer_observed_dead':True,'worker_report':record(inv/'normal_completion.json'),
+            'source':record(__file__),'worker_source':record(driver),'log':record(log)}
+        prior=control/('native_'+str(invocation).zfill(6)+'_actual0.json');write_json(prior,closure)
+        pointer=Path(report['latest_checkpoint']['pointer']['path'])
+        print(json.dumps({'actual_normal0':record(prior),'saved_updates':report['actual_optimizer_updates'],'automatic_continuation':report['completed_boundaries']<3}),flush=True)
+        if report['completed_boundaries']==3:break
+        invocation+=1
+
+
+if __name__=='__main__':
+    p=argparse.ArgumentParser();p.add_argument('--review',required=True);p.add_argument('--configuration',required=True)
+    p.add_argument('--pointer',required=True);p.add_argument('--latest-failure',required=True);p.add_argument('--branch',required=True)
+    p.add_argument('--output',required=True);p.add_argument('--queue-bytes',type=int,default=268435456);p.add_argument('--start-invocation',type=int,default=1);p.add_argument('--prior-process');p.add_argument('--periodic-quiescence-resume');p.add_argument('--DEV-admission-resume');p.add_argument('--original-interval-resume');p.add_argument('--abnormal-resume');p.add_argument('--source-transition-resume');p.add_argument('--DEV-frontend-resume');main(p.parse_args())

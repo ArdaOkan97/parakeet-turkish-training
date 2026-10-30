@@ -1,0 +1,72 @@
+{
+  "summary": {
+    "total": 743,
+    "zero_word_error_utterances": 103,
+    "at_most_10_percent_WER_utterances": 254,
+    "at_least_50_percent_WER_utterances": 43,
+    "corpus_WER_percent": 18.209396390790292
+  },
+  "runtime": "original source BF16 GPU",
+  "examples": [
+    {
+      "row": 64,
+      "sentence_id": 1867,
+      "reference": "Bitkiler insanların soluduğu oksijeni üretir ve insanların çıkardığı (yani soluk verdiği) karbondioksiti alır.",
+      "hypothesis": "Bitkiler insanların soluduğu oksijeni üretir ve insanların çıkardığı yani soluk verdiği karbondioksiti alır.",
+      "word_errors": 0,
+      "reference_words": 13,
+      "wer_percent": 0.0,
+      "duration_seconds": 12.0
+    },
+    {
+      "row": 91,
+      "sentence_id": 1766,
+      "reference": "Bazı atomların kararsız çekirdekleri vardır, yani küçük bir müdahaleyle ya da hiç müdahale olmadan parçalanabilirler.",
+      "hypothesis": "Bazı atomların kararsız çekirdekleri vardır. Yani küçük bir müdahaleyle ya da hiç müdahale olmadan parçalanabilirler.",
+      "word_errors": 0,
+      "reference_words": 15,
+      "wer_percent": 0.0,
+      "duration_seconds": 12.36
+    },
+    {
+      "row": 1,
+      "sentence_id": 1660,
+      "reference": "Romantizm; Goethe, Fichte ve Schlegel gibi yazarlardan geçen geniş bir kültürel determinizm özelliği taşıyordu.",
+      "hypothesis": "Romantizm, göte, pihte, ve şile gel gibi yazarlardan geten geniş bir kültürel determinizm özelliği taşıyordu.",
+      "word_errors": 5,
+      "reference_words": 14,
+      "wer_percent": 35.714285714285715,
+      "duration_seconds": 12.36
+    },
+    {
+      "row": 2,
+      "sentence_id": 1692,
+      "reference": "Japonya'nın nükleer ajansına göre, tesiste radyoaktif sezyum ve iyodin tespit edildi.",
+      "hypothesis": "Japonya'nın nükleer ajansına göre tesis de radioaktiv sezum ve iodin tespit edildi.",
+      "word_errors": 5,
+      "reference_words": 11,
+      "wer_percent": 45.45454545454545,
+      "duration_seconds": 11.1
+    },
+    {
+      "row": 212,
+      "sentence_id": 1832,
+      "reference": "Futbol, ​​basketbol, ​​voleybol, sutopu, eskrim, ragbi, bisiklete binme, buz hokeyi, patenli hokey ve F1 motorlu araç yarışları popüler sporlardandır.",
+      "hypothesis": "Futbol, basketbol, baleybol su topu, eks grim rug bir bisikletebime, buz okey, batanli okey ve efir motorlu ara çalışları popüler sporlardandır",
+      "word_errors": 14,
+      "reference_words": 19,
+      "wer_percent": 73.6842105263158,
+      "duration_seconds": 10.2
+    },
+    {
+      "row": 260,
+      "sentence_id": 1883,
+      "reference": "Köprünün altındaki dikey açıklık 15 metredir. İnşaat 2011 yılı Ağustos ayında tamamlandı, Mart 2017'ye kadar trafiğe açılmadı.",
+      "hypothesis": "Köprünün altındaki dike açıklık on beş metridir. İnşaat iki bin on bir yılı Avuslu sayında tamamlandı, Mart iki bin on yediye kadar trafiğe açılmadı.",
+      "word_errors": 14,
+      "reference_words": 17,
+      "wer_percent": 82.3529411764706,
+      "duration_seconds": 14.58
+    }
+  ]
+}

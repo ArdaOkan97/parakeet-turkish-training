@@ -1,0 +1,38 @@
+{
+  "files": 3616,
+  "bytes": 63905303,
+  "secret_flags": [],
+  "python_syntax_errors": [
+    {
+      "path": "analysis/BPE9223_training_launch_v1/resident_RAM_original_interval45306_failure_actual_v1/verify_second_row_ingress_frontend_v1.py",
+      "line": 41,
+      "message": "unexpected character after line continuation character"
+    },
+    {
+      "path": "analysis/BPE9223_training_launch_v1/seal_headroom133137_failure_v1.py",
+      "line": 23,
+      "message": "unterminated string literal (detected at line 23)"
+    },
+    {
+      "path": "project/work/research/run_ASR18_BPE9223_resident_RAM_training_v21.py",
+      "line": 533,
+      "message": "expected 'else' after 'if' expression"
+    },
+    {
+      "path": "project/work/research/trackio_v15_fixture_extension.py",
+      "line": 3,
+      "message": "unexpected indent"
+    },
+    {
+      "path": "project/work/research/trackio_v16_fixture_extension.py",
+      "line": 2,
+      "message": "unexpected indent"
+    },
+    {
+      "path": "project/work/research/trackio_v17_fixture_extension.py",
+      "line": 1,
+      "message": "unexpected indent"
+    }
+  ],
+  "production_entrypoints_hash_and_syntax": "pass"
+}

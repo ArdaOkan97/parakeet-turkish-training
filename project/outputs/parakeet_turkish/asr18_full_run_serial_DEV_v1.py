@@ -1,0 +1,436 @@
+"""Inactive concrete serial350 DEV glue for the full-run lifecycle.
+
+No launcher, model construction, optimizer construction or import-time ML work.
+The native owner must supply a separately reviewed optimizer-free worker and
+owned executor. The completed finite diagnostic DEV is derivation evidence,
+never authority to promote its checkpoint or reuse its <=20-update admission.
+"""
+from copy import deepcopy
+import gc
+import hashlib
+import inspect
+import json
+import os
+from pathlib import Path
+import random
+import threading
+
+from bpe_broad_production_state_v1 import canonical, digest, require
+from bpe_full_run_lifecycle_v2 import (
+    REFERENCES, LIMITS, SCORER_SHA, GATE_SHA, bound, read_bound, official_DEV,
+    milestones, progress,
+)
+from bpe_broad_audio_v1 import record
+from bpe_streaming_checkpoint_semantics_v2 import (
+    decode_scalar_tree, select, verify_saved_metadata,
+)
+
+ROOT = Path(r'E:\gpu_training_scratchpad')
+HERE = Path(__file__).resolve().parent
+PROJECT = HERE.parents[1]
+DATA = PROJECT/'work'/'data'
+OWNER = '/root/memory_diagnosis'
+REQUEST_KIND = 'ASR18_full_run_coherent_boundary_serial350DEV_request_v1'
+REPORT_KIND = 'ASR18_serial_complete350_boundary_DEV_v1'
+EXECUTION_KEYS = {'worker_source', 'parent_source', 'guard_source', 'bootstrap_source'}
+DEPENDENCIES = (
+    'bpe_full_run_lifecycle_v2.py', 'bpe_streaming_checkpoint_v1.py',
+    'bpe_streaming_checkpoint_semantics_v2.py', 'fastmss_owned_process_closure_v1.py',
+    'bpe_broad_production_v3.py', 'bpe_broad_full207_optimizer_v1.py',
+    'train_lora_batched_tsc_bpe_full_decoder_v1.py', 'benchmark.py', 'metrics.py',
+    'tsc_bpe_full_decoder_transition_v1.py', 'runtime.py', 'confidence.py',
+)
+
+
+def serial():
+    require(threading.current_thread() is threading.main_thread(), 'Serial main-thread DEV only')
+
+
+def same(left, right):
+    return left == right and canonical(left) == canonical(right)
+
+
+def integer(value, low=0):
+    require(type(value) is int and value >= low, 'Exact nonboolean DEV frontier required')
+    return value
+
+
+def sources():
+    """Small source bindings; caller pins the complete transitive runtime too."""
+    return {name: record(HERE/name) for name in DEPENDENCIES}
+
+
+def new_E(path):
+    path = Path(path).resolve()
+    require(path.is_relative_to(ROOT.resolve()), 'All new DEV artifacts must stay on designated E')
+    return path
+
+
+def write_new(path, value):
+    path = new_E(path)
+    with path.open('xb') as stream:
+        stream.write(canonical(value)); stream.flush(); os.fsync(stream.fileno())
+    return record(path)
+
+
+def canonical_DEV_paths():
+    return {language: DATA/('portuguese_retention_v1' if language == 'pt' else '')/
+            ('validation_'+language+'.jsonl') for language in REFERENCES}
+
+
+def checked_policy(policy_pin, ROOT_review_pin, *, identity, execution):
+    """Membership is independently ROOT pinned, not inferred from word totals."""
+    policy = read_bound(policy_pin); review = read_bound(ROOT_review_pin)
+    require(review['kind'] == 'ROOT_full_run_serial350DEV_policy_and_sources_review_v1'
+            and review['accepted'] is True and review['reviewer'] == '/root'
+            and review['canonical_fixed_DEV_manifests_independently_verified'] is True
+            and review['scope'] == 'exact_full_run_serial_DEV_callback_sources_and_policy'
+            and same(review['scorer_policy'], policy_pin)
+            and same(review['full_run_source_contract'], identity['full_run_source_contract'])
+            and review['run_identity_sha256'] == digest(identity)
+            and same(review['implementation'], record(__file__))
+            and same(review['dependencies'], sources())
+            and same(review['execution_sources'], execution),
+            'Separate exact ROOT policy/runtime review is required; this source is inactive')
+    require(type(execution) is dict and set(execution) == EXECUTION_KEYS,
+            'Explicit future native-owner worker/parent/guard/bootstrap sources required')
+    for pin in execution.values(): bound(pin)
+    require(policy['official_scorer'] == record(HERE/'metrics.py')
+            and policy['official_scorer']['sha256'] == SCORER_SHA
+            and policy['integer_gate_contract'] == record(HERE/'tsc_bpe_full_decoder_transition_v1.py')
+            and policy['integer_gate_contract']['sha256'] == GATE_SHA
+            and same(policy['reference_words'], REFERENCES)
+            and same(policy['retention_limits'], LIMITS)
+            and same(review['canonical_DEV_manifests'], policy['DEV_manifests'])
+            and set(policy['DEV_manifests']) == set(REFERENCES),
+            'Immutable official scorer, six integer gates and independently pinned fixed DEV required')
+    for language, path in canonical_DEV_paths().items():
+        pin = policy['DEV_manifests'][language]; bound(pin)
+        require(pin['path'] == str(path.resolve()), 'DEV route differs from the canonical original evaluator')
+        rows = [json.loads(line) for line in path.read_text(encoding='utf-8-sig').splitlines() if line.strip()]
+        require(len(rows) == 50 and len({row['source_id'] for row in rows}) == 50
+                and all(row['language'] == language and row['dataset_split'] == 'validation' for row in rows),
+                'Exactly the independently pinned original50 per language; never TEST')
+    return policy
+
+
+def checked_checkpoint(pointer_pin, *, identity, expected_updates, boundary):
+    """Check the actual saved scalar tree/payload/prefix, not pointer counters alone."""
+    pointer = read_bound(pointer_pin)
+    require(pointer['kind'] == 'ASR18_production_window_completed_checkpoint_pointer_v2'
+            and pointer['diagnostic_only'] is False
+            and pointer['writer_returned_and_payload_verified'] is True
+            and pointer['all_window_updates_committed'] is True
+            and integer(pointer['committed_updates'], 1) == expected_updates,
+            'Full-run coherent actual checkpoint at the exact declared pass tail required')
+    metadata = read_bound(pointer['checkpoint'])
+    require(same(metadata['raw_payload'], pointer['payload'])
+            and Path(pointer['payload']['path']).resolve() ==
+            Path(pointer['checkpoint']['path']).resolve().with_suffix('.tensors.bin'),
+            'Exact fsynced checkpoint metadata/payload pair required')
+    # Payload can exceed the small-JSON bound; record() streams it without loading.
+    require(same(record(pointer['payload']['path']), pointer['payload']), 'Complete checkpoint payload hash differs')
+    tree = metadata['tree']
+    scalar = lambda *path: decode_scalar_tree(select(tree, *path))
+    saved_identity, sampler = scalar('identity'), scalar('sampler')
+    require(same(saved_identity, pointer['identity'])
+            and same(saved_identity['caller_identity']['full_run_lifecycle_identity'], identity),
+            'Saved scientific source identity must carry the exact full-run lifecycle identity')
+    semantic = verify_saved_metadata(metadata, identity=saved_identity, optimizer_updates=expected_updates,
+        sampler_state=sampler, journal_prefix=pointer['journal_prefix'], diagnostic_only=False)
+    require(same(semantic, pointer['saved_semantic_state_verified'])
+            and digest(sampler) == pointer['sampler_state_sha256']
+            and progress(sampler)['optimizer_updates'] == expected_updates
+            and boundary in milestones(sampler)
+            and all(progress(sampler)[key] == boundary[key] for key in ('broad_draws', 'cleaner_draws', 'optimizer_updates'))
+            and scalar('optimizer', 'clocks') == [clock+expected_updates for clock in (64250, 2000, 62250)],
+            'Saved actual all-source clocks/sampler/pass-tail/prefix differ')
+    return pointer, metadata, sampler
+
+
+def checked_native_boundary(pin, *, request, pointer):
+    """A live idle acknowledgement cannot enter the optimizer-free DEV worker."""
+    from fastmss_owned_process_closure_v1 import verify
+    evidence = read_bound(pin)
+    require(evidence['kind'] == 'ASR18_full_run_native_checkpoint_actual0_for_serial_DEV_v1'
+            and evidence['owner'] == OWNER and evidence['passed'] is True
+            and same(evidence['checkpoint_pointer'], request['checkpoint_pointer'])
+            and evidence['run_identity_sha256'] == digest(request['identity'])
+            and evidence['optimizer_updates'] == request['optimizer_updates']
+            and evidence['sampler_state_sha256'] == pointer['sampler_state_sha256']
+            and same(evidence['journal_prefix'], pointer['journal_prefix'])
+            and evidence['all207_threeAdam_all4RNG_exact_checkpoint_restore_verified'] is True,
+            'Exact separately completed native checkpoint boundary required before serial DEV')
+    process = read_bound(evidence['actual_owned_process0'])
+    verify(process, kind='ASR18_owned_GPU_process_completion_v1', owner=OWNER,
+           report=evidence['native_report'])
+    native = read_bound(evidence['native_report'])
+    require(native['passed'] is True and native['diagnostic_only'] is False
+            and same(native['latest_pointer'], request['checkpoint_pointer'])
+            and native['run_identity_sha256'] == digest(request['identity'])
+            and native['global_new_updates'] == request['optimizer_updates']
+            and native['checkpoints'][-1]['exact_restore']['all207_threeAdam_all4RNG_match_actual_pre_save'] is True,
+            'Actual native source/report/frontier, not a diagnostic checkpoint promotion')
+    return evidence
+
+
+def checked_request(request):
+    serial()
+    require(request['kind'] == REQUEST_KIND and request['owner'] == OWNER
+            and request['production_enabled'] is False
+            and request['action']['kind'] == 'checkpoint_then_serial350DEV'
+            and request['split'] == 'validation' and request['clips'] == 350
+            and request['TEST_used'] is False and request['native_updates_in_DEV'] == 0
+            and type(request['native_updates_in_DEV']) is int,
+            'Explicit inactive optimizer-free fixed350 boundary request required')
+    identity = request['identity']
+    require(identity['kind'] == 'ASR18_reviewed_full_two_broad_one_cleaner_run_identity_v1'
+            and identity['native_owner'] == OWNER
+            and identity['required_broad_passes'] == 2 and identity['required_cleaner_passes'] == 1
+            and same(identity['source_original_clocks'], [64250, 2000, 62250])
+            and identity['source_optimizer_RNG_sampler_reset'] is False
+            and same(identity['scorer_policy'], request['scorer_policy']), 'Exact full-run identity and policy')
+    bound(identity['full_run_source_contract'])
+    policy = checked_policy(request['scorer_policy'], request['ROOT_policy_review'],
+                            identity=identity, execution=request['execution_sources'])
+    pointer, metadata, sampler = checked_checkpoint(request['checkpoint_pointer'], identity=identity,
+        expected_updates=integer(request['optimizer_updates'], 1), boundary=request['action']['boundary'])
+    checked_native_boundary(request['native_checkpoint_actual0'], request=request, pointer=pointer)
+    require(same(request['dependencies'], sources()) and same(request['implementation'], record(__file__)),
+            'DEV source or dependency changed after exact review')
+    return policy, pointer, metadata, sampler
+
+
+def _tensor_hash(torch, tensor, guard):
+    """Post-evaluation equality without another fullCPU207-weight snapshot."""
+    require(tensor.is_contiguous(), 'Original contiguous all207 parameters required')
+    raw = tensor.detach().view(torch.uint8).reshape(-1)
+    result = hashlib.sha256()
+    for start in range(0, raw.numel(), 4*1024**2):
+        guard(); chunk = raw[start:start+4*1024**2].cpu()
+        result.update(chunk.numpy().tobytes()); del chunk
+    return {'dtype': str(tensor.dtype), 'shape': list(tensor.shape), 'sha256': result.hexdigest()}
+
+
+def _capture_RNG(torch, np):
+    n = np.random.get_state()
+    return (random.getstate(), (n[0], n[1].copy(), *n[2:]), torch.get_rng_state().clone(),
+            [value.clone() for value in torch.cuda.get_rng_state_all()])
+
+
+def _restore_RNG(torch, np, rng):
+    random.setstate(rng[0]); np.random.set_state(rng[1]); torch.set_rng_state(rng[2])
+    torch.cuda.set_rng_state_all(rng[3])
+    actual = _capture_RNG(torch, np)
+    require(actual[0] == rng[0] and actual[1][0] == rng[1][0]
+            and np.array_equal(actual[1][1], rng[1][1]) and actual[1][2:] == rng[1][2:]
+            and torch.equal(actual[2], rng[2]) and len(actual[3]) == len(rng[3])
+            and all(torch.equal(a, b) for a, b in zip(actual[3], rng[3])), 'All4 child RNG families restore exactly')
+
+
+def evaluate_boundary_checkpoint(model, processor, request_pin, folder, *, owned_worker_admission,
+                                 torch, stage, admit, stop_check):
+    """Concrete future sole-owned worker hook, with an already built BPE model.
+
+    This function cannot launch or construct a model/optimizer. A NEW reviewed
+    native-owner bootstrap/driver must admit it, prove the actual sole lease,
+    maintain all resource guards, and actually close before seal_completed_DEV.
+    """
+    request = read_bound(request_pin)
+    policy, pointer, metadata, sampler = checked_request(request)
+    folder = new_E(folder); require(folder.is_dir(), 'Fresh owner-created E worker namespace required')
+    from fastmss_owned_process_closure_v1 import identity as process_identity
+    producer = process_identity()
+    # The future parent binds this attestation to its exact live owned PID/ctime,
+    # lease and resource admission, then supplies a genuine process0 afterwards.
+    boot = read_bound(owned_worker_admission)
+    require(boot['kind'] == 'ASR18_sole_owned_optimizer_free_serialDEV_worker_admission_v1'
+            and boot['owner'] == OWNER and boot['sole_owned_GPU_child'] is True
+            and boot['actual_training_optimizer_running'] is False
+            and same(boot['producer'], producer) and same(boot['request'], request_pin)
+            and same(boot['worker_source'], request['execution_sources']['worker_source'])
+            and same(boot['parent_source'], request['execution_sources']['parent_source'])
+            and boot['optimizer_objects_constructed_or_loaded_in_DEV_worker'] is False,
+            'Actual independently admitted sole optimizer-free worker identity required')
+    import numpy as np
+    from bpe_streaming_checkpoint_v1 import MappedCheckpoint
+    from bpe_broad_full207_optimizer_v1 import bits_equal
+    from bpe_broad_production_v3 import prohibit_model_transforms, frozen_parameter
+    require(model.joint._ASR18_fp32_joint_policy['kind'] == 'ASR18_joint_canonical_T1_U128_FP32_v2'
+            and model.config.vocab_size == 8711 and model.config.blank_token_id == 8192,
+            'Original all207 BPE model and canonical joint policy required')
+    prohibit_model_transforms(model, torch)
+    admit('full_run_DEV_weight_only_restore_and_hash', 350_000_000)
+    mapped = MappedCheckpoint(pointer['checkpoint'], torch=torch, guard=stop_check)
+    try:
+        saved = mapped.value; weights = saved['weights']
+        require(saved['diagnostic_only'] is False and len(weights) == 207
+                and set(weights) == {name for name, p in model.named_parameters() if p.requires_grad}
+                and saved['optimizer']['updates'] == request['optimizer_updates']
+                and saved['optimizer']['clocks'] == [clock+request['optimizer_updates'] for clock in (64250, 2000, 62250)]
+                and digest(saved['sampler']) == digest(sampler), 'All207 exact weight names/source clocks/sampler required')
+        result = model.load_state_dict(weights, strict=False); actual = dict(model.named_parameters())
+        require(not result.unexpected_keys and all(bits_equal(torch, actual[name], weight)
+                for name, weight in weights.items()), 'Actual all207 weight-only restore must be byte exact')
+        weight_hashes = {name: _tensor_hash(torch, actual[name], stop_check) for name in weights}
+        n = saved['numpy_rng']
+        random.setstate(saved['python_rng']); np.random.set_state((n[0], np.array(n[1], dtype=np.uint32), *n[2:]))
+        torch.set_rng_state(saved['torch_rng']); torch.cuda.set_rng_state_all(saved['cuda_rng'])
+        rng = _capture_RNG(torch, np)
+        del saved, weights, actual, result, n
+    finally:
+        # No borrowed mapped weights, Adam views or saved containers may survive.
+        mapped.close()
+    gc.collect(); model.requires_grad_(False); model.eval(); torch.cuda.empty_cache()
+    frozen = model._diagnostic_frozen_backing
+    require(len(frozen) == 294 and all(frozen_parameter(model, name).device.type == 'cpu'
+            and not frozen_parameter(model, name).requires_grad
+            and frozen_parameter(model, name).data_ptr() == pin['data_ptr'] for name, pin in frozen.items()),
+            'All read-only streamed frozen backing pointers must remain unchanged')
+    stage('full_run_optimizer_free_serial350DEV_ready', checkpoint_pointer=request['checkpoint_pointer'])
+    # Reused finite measurement, NOT a whole-worker or new full-run fit approval.
+    # The future parent must review full bootstrap/current-private + this allowance.
+    admit('full_run_optimizer_free_serial350DEV_original_route', 2_100_000_000)
+    import benchmark
+    import train_lora_batched_tsc_bpe_full_decoder_v1 as trainer
+    require(Path(benchmark.DATA).resolve() == DATA.resolve() == Path(trainer.DATA).resolve(),
+            'Original fixed evaluator data route changed')
+    tag = 'ASR18_full_run_DEV_'+folder.name
+    result_folder = ROOT/'results'/tag
+    require(not result_folder.exists() and not (ROOT/'results'/(tag+'_pt')).exists(),
+            'Fresh prediction namespace only; no cached partial or historical predictions')
+    original_inputs = benchmark.inputs_for
+    def inputs(processor, row):
+        stop_check(); return original_inputs(processor, row)
+    benchmark.inputs_for = inputs
+    try:
+        scores = trainer.evaluate(model, processor, tag)
+    finally:
+        benchmark.inputs_for = original_inputs
+        _restore_RNG(torch, np, rng)
+    require(all(not path.name.startswith('test_') for path in result_folder.iterdir()), 'TEST must remain untouched')
+    actual = dict(model.named_parameters())
+    after_hashes = {name: _tensor_hash(torch, actual[name], stop_check) for name in weight_hashes}
+    require(same(weight_hashes, after_hashes)
+            and model._diagnostic_frozen_metrics['logical_current_matrix_bytes'] == 0,
+            'All207 weights and streamed matrix lifetime must remain unchanged across DEV')
+    gate = trainer.gate(scores)
+    require(same(gate['retention_allowed_word_errors'], LIMITS)
+            and gate['retention_early_stop_active'] is False, 'Immutable all6 monitor-only integer gates')
+    # Revalidate the entire immutable source checkpoint and small saved semantics;
+    # DEV has neither instantiated a sampler nor replay/augmentation transactions.
+    checked_checkpoint(request['checkpoint_pointer'], identity=request['identity'],
+        expected_updates=request['optimizer_updates'], boundary=request['action']['boundary'])
+    report = {'kind': REPORT_KIND, 'passed': True, 'serial_optimizer_free': True,
+        'full350_DEV_complete': True, 'split': 'validation', 'TEST_used': False,
+        'checkpoint_pointer': request['checkpoint_pointer'], 'scorer_policy': policy,
+        'predictions': {language: record(result_folder/('validation_'+language+'.jsonl')) for language in REFERENCES},
+        'scores': scores, 'source_request': request_pin, 'owned_worker_admission': owned_worker_admission,
+        'implementation': record(__file__),
+        'producer': producer, 'worker_source': request['execution_sources']['worker_source'],
+        'parent_source': request['execution_sources']['parent_source'], 'dependencies': sources(),
+        'all207_weight_only_restore_byte_exact': True, 'all207_after_DEV_hashes_unchanged': True,
+        'weight_hashes': weight_hashes, 'optimizer_objects_constructed_or_loaded_in_DEV_worker': False,
+        'actual_native_updates_in_DEV': 0, 'all4_child_RNG_restored_exactly': True,
+        'sampler_replay_and_augmentation_objects_created_or_advanced': False,
+        'saved_sampler_state_sha256': pointer['sampler_state_sha256'], 'saved_journal_prefix': pointer['journal_prefix'],
+        'saved_source_clocks': [clock+request['optimizer_updates'] for clock in (64250, 2000, 62250)],
+        'original_evaluator_result_folder': str(result_folder), 'native_checkpoint_actual0': request['native_checkpoint_actual0'],
+        'training_shortened_or_winner_promoted': False, 'production_approval_claimed': False}
+    report['official_saved_text_rescore'] = official_DEV(report, request['checkpoint_pointer'], policy)
+    return write_new(folder/'serial350_worker_report.json', report)
+
+
+def verified_completed_DEV(request_pin, worker_report_pin, actual_process0_pin):
+    """Verify real wait0 without publishing or executing anything."""
+    from fastmss_owned_process_closure_v1 import verify
+    request = read_bound(request_pin); policy, pointer, _, _ = checked_request(request)
+    worker = read_bound(worker_report_pin); process = read_bound(actual_process0_pin)
+    verify(process, kind='ASR18_owned_GPU_process_completion_v1', owner=OWNER, report=worker_report_pin)
+    require(same(process['worker_source'], request['execution_sources']['worker_source'])
+            and same(process['parent_source'], request['execution_sources']['parent_source'])
+            and same(process['guard_source'], request['execution_sources']['guard_source'])
+            and same(worker['source_request'], request_pin)
+            and same(worker['implementation'], record(__file__)) and same(worker['dependencies'], sources())
+            and worker['all207_weight_only_restore_byte_exact'] is True
+            and worker['all207_after_DEV_hashes_unchanged'] is True
+            and worker['all4_child_RNG_restored_exactly'] is True
+            and worker['optimizer_objects_constructed_or_loaded_in_DEV_worker'] is False
+            and type(worker['actual_native_updates_in_DEV']) is int and worker['actual_native_updates_in_DEV'] == 0
+            and worker['sampler_replay_and_augmentation_objects_created_or_advanced'] is False
+            and worker['saved_sampler_state_sha256'] == pointer['sampler_state_sha256']
+            and same(worker['saved_journal_prefix'], pointer['journal_prefix']),
+            'Actual source-bound optimizer-free all207/full-RNG/unchanged prefix completion required')
+    boot = read_bound(worker['owned_worker_admission'])
+    require(boot['kind'] == 'ASR18_sole_owned_optimizer_free_serialDEV_worker_admission_v1'
+            and boot['owner'] == OWNER and boot['sole_owned_GPU_child'] is True
+            and boot['actual_training_optimizer_running'] is False
+            and boot['optimizer_objects_constructed_or_loaded_in_DEV_worker'] is False
+            and same(boot['producer'], process['producer']) and same(boot['request'], request_pin)
+            and same(boot['worker_source'], process['worker_source'])
+            and same(boot['parent_source'], process['parent_source']),
+            'Actual DEV admission/report/process identities differ')
+    score = official_DEV(worker, request['checkpoint_pointer'], policy)
+    require(same(score, worker['official_saved_text_rescore']), 'Saved complete350 scores differ on independent rescore')
+    sealed = deepcopy(worker)
+    sealed.update(actual_owned_DEV_process0=actual_process0_pin, actual_worker_report=worker_report_pin,
+                  actual_DEV_owner_verified=True, official_saved_text_rescore=score)
+    return sealed
+
+
+def seal_completed_DEV(request_pin, worker_report_pin, actual_process0_pin, output):
+    """Owner parent callback AFTER real wait0; report existence is insufficient."""
+    return write_new(output, verified_completed_DEV(request_pin, worker_report_pin, actual_process0_pin))
+
+
+class SerialDEVCallbacks:
+    """Concrete lifecycle serial_DEV/verify_DEV adapter; executor remains unbuilt.
+
+    execute_owned(request_pin) must be a NEW reviewed native-owner implementation
+    returning {'worker_report', 'actual_process0'}. No default launch path exists.
+    native_boundary(pointer_pin) returns the exact completed native0 evidence.
+    Both are source bound. The future parent still durably checkpoints lifecycle
+    acknowledgement/winner state before another pass; this adapter cannot do so.
+    """
+    def __init__(self, *, ROOT_policy_review, execution_sources, execute_owned, execute_owned_source,
+                 native_boundary, native_boundary_source, output_directory):
+        self.review = deepcopy(ROOT_policy_review); self.execution = deepcopy(execution_sources)
+        self.execute, self.native_boundary = execute_owned, native_boundary
+        self.output = new_E(output_directory)
+        require(self.output.is_dir(), 'Explicit fresh future DEV namespace required')
+        for function, pin in ((execute_owned, execute_owned_source), (native_boundary, native_boundary_source)):
+            bound(pin); require(callable(function) and str(Path(inspect.getsourcefile(function)).resolve()) == pin['path'],
+                                'Exact source-bound future native-owner callbacks required')
+        require(same(execute_owned_source, execution_sources['parent_source'])
+                and same(native_boundary_source, execution_sources['parent_source']),
+                'The actual native owner parent owns launch and prior native checkpoint verification')
+
+    def serial_DEV(self, lifecycle_request):
+        serial(); request = deepcopy(lifecycle_request)
+        request.update(kind=REQUEST_KIND, owner=OWNER, production_enabled=False, TEST_used=False,
+            native_updates_in_DEV=0, scorer_policy=request['identity']['scorer_policy'],
+            ROOT_policy_review=self.review, execution_sources=self.execution, dependencies=sources(),
+            implementation=record(__file__), native_checkpoint_actual0=self.native_boundary(request['checkpoint_pointer']))
+        # The executor gets the pre-worker request and creates a SEPARATE bound
+        # live worker-admission record; it must not mutate this immutable request.
+        # That record is passed explicitly to evaluate_boundary_checkpoint below.
+        directory = self.output/request['action']['boundary']['name']
+        directory.mkdir(exist_ok=False)
+        checked_request(request)
+        request_pin = write_new(directory/'request.json', request)
+        result = self.execute(request_pin)
+        return seal_completed_DEV(request_pin, result['worker_report'], result['actual_process0'], directory/'complete_serial350DEV.json')
+
+    def verify_DEV(self, lifecycle_request):
+        serial(); report = read_bound(lifecycle_request['report'])
+        request_pin = report['source_request']; request = read_bound(request_pin)
+        require(same(request['checkpoint_pointer'], lifecycle_request['checkpoint_pointer'])
+                and same(request['identity'], lifecycle_request['identity'])
+                and same(request['action']['boundary'], lifecycle_request['boundary'])
+                and lifecycle_request['all207_weights_and_all_source_clocks_unchanged_required'] is True
+                and lifecycle_request['all4RNG_and_replay_queues_unchanged_required'] is True,
+                'Exact lifecycle boundary/source/prefix verification required')
+        # Do not publish another report or launch another evaluator on verification.
+        expected = verified_completed_DEV(request_pin, report['actual_worker_report'], report['actual_owned_DEV_process0'])
+        require(same(expected, report), 'Sealed actual complete350 DEV report differs')
+        return True

@@ -1,0 +1,22 @@
+[
+  {
+    "role": "Production training driver",
+    "path": "analysis/BPE9223_training_launch_v1/resident_RAM_recurrent_metadata_slowdown_fix_v1/one_postDEV_gc_refresh_v1/next200000_throughput_repair_v1/next212000_failure_repair_v1/r9_recovery_driver_v43.py",
+    "sha256": "43d2d49fecf288cede18458402444546381f388c1c11710f6d6c0e7823d14430"
+  },
+  {
+    "role": "Production owner / normal continuations",
+    "path": "analysis/BPE9223_training_launch_v1/resident_RAM_recurrent_metadata_slowdown_fix_v1/one_postDEV_gc_refresh_v1/next200000_throughput_repair_v1/next212000_failure_repair_v1/r9_recovery_owner_v46.py",
+    "sha256": "6f55e946378b7ee59e64d1cf81cda62c40a38f95b4f1fe61d7f4c26e67bc8c64"
+  },
+  {
+    "role": "Production checkpoint retention guardian",
+    "path": "analysis/BPE9223_training_launch_v1/best_checkpoint_retention_fix_v1/retention_guardian.py",
+    "sha256": "5d59647b718c23a9ba689c4d376bae2d81a5dd44daadaf101d839d83c64a4876"
+  },
+  {
+    "role": "Production Trackio reader",
+    "path": "analysis/BPE9223_training_launch_v1/resident_RAM_recurrent_metadata_slowdown_fix_v1/one_postDEV_gc_refresh_v1/next200000_throughput_repair_v1/next212000_failure_repair_v1/ROOT_HUMAN_Reader9_repair_1755_v1/serve_BPE9223_Trackio_live_v9.py",
+    "sha256": "5c6050717d805a022f1900acc0022323f49150e1547dc861d95cd13853e2390d"
+  }
+]

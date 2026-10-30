@@ -1,0 +1,33 @@
+import ast,hashlib,json,subprocess,sys
+from pathlib import Path
+root=Path.cwd(); entry=root/'outputs/parakeet_turkish/train_full_nemo_turkish_v1.py'; cfgpath=entry.with_name('full_nemo_turkish_v1.json')
+src=entry.read_text(encoding='utf-8'); tree=ast.parse(src); cfg=json.loads(cfgpath.read_text(encoding='utf-8')); checks=[]
+def check(name,ok):
+ if not ok:raise AssertionError(name)
+ checks.append(name)
+check('all heavy imports nested in runtime',all(not isinstance(n,(ast.Import,ast.ImportFrom)) or all(not a.name.startswith(('torch','nemo','lightning','omegaconf')) for a in n.names) for n in tree.body))
+check('stock official model entry training_step retained','model.training_step.__func__ is EncDecRNNTModel.training_step' in src)
+check('stock official configure_optimizers retained','model.configure_optimizers.__func__ is ModelPT.configure_optimizers' in src)
+check('official dataloaders and fit used',all(x in src for x in ('model.setup_training_data(train_cfg)','model.setup_multiple_validation_data(val_cfg)','trainer.fit(model, ckpt_path=')))
+check('no prior HF runtime/loss import',all(x not in src for x in ('from runtime import','from native_tdt_checkpointed','from efficient_tdt')))
+check('declared native cold initialization',cfg['initialization']=='original_native_v3_nemo_no_HF_trained_weight_transfer')
+check('native TDT recipe explicitly changed',cfg['objective']['sigma']==.02 and cfg['objective']['omega']==.1 and cfg['objective']['replay_KD'] is False)
+check('B8 accumulation2 and native joint1',cfg['model']['train_ds']['batch_size']==8 and cfg['trainer']['accumulate_grad_batches']==2 and cfg['joint_fused_batch_size']==1)
+check('horizon independent of pilot stop',cfg['model']['optim']['sched']['max_steps']==cfg['trainer']['max_steps']==9361 and 'declared_pilot_update_limit' in src)
+check('official checkpoint restore and explicit prefix skip','trainer.fit(model, ckpt_path=' in src and 'range(consumed, len(self.data_source))' in src)
+check('official AdamW/Cosine settings',cfg['model']['optim']['name']=='adamw' and cfg['model']['optim']['sched']['name']=='CosineAnnealing')
+check('single GPU and finite pilot',cfg['trainer']['devices']==1 and cfg['pilot_optimizer_update_limit']==250 and cfg['trainer']['max_steps']==9361)
+check('no loader inserted BOS/EOS',cfg['model']['train_ds']['use_start_end_token'] is False and cfg['model']['validation_ds']['use_start_end_token'] is False)
+check('frozen encoder BF16 before FP32 LoRA installation',src.index('model.encoder.to(dtype=torch.bfloat16)')<src.index('wrapped = LoRALinear'))
+check('inactive cache cleanup bounded to inactive threshold', 'memory_reserved() - torch.cuda.memory_allocated() >= 750_000_000' in src)
+check('same fixed six DEV languages and gate',len(cfg['model']['validation_ds']['manifest_filepath'])==6 and 'max(.005, .1 * baseline_wer[lang])' in src)
+check('no TEST evaluation method call',not any(isinstance(n,ast.Attribute) and n.attr=='test' for n in ast.walk(tree)))
+for path,expected in cfg['source_pins'].items():check('source pin '+path,hashlib.sha256((root/path).read_bytes()).hexdigest()==expected)
+result=subprocess.run([sys.executable,'-X','utf8',str(entry),'--help'],capture_output=True,text=True)
+check('real stdlib CLI help exits0',result.returncode==0 and '--validate-only' in result.stdout)
+namespace={'__name__':'full_nemo_guard_import','__file__':str(entry)}; exec(compile(tree,str(entry),'exec'),namespace)
+check('import does not load Torch/NeMo/Lightning',all(name not in sys.modules for name in ('torch','nemo','lightning')))
+args=namespace['parser']().parse_args(['--run-id','full_nemo_turkish_20261011_01','--validate-only'])
+check('actual CLI parses scoped pilot',args.run_id=='full_nemo_turkish_20261011_01' and args.validate_only)
+report={'schema':1,'kind':'full_nemo_trial_stdlib_source_guards_v1','passed':True,'checks':checks,'check_count':len(checks),'entry_sha256':hashlib.sha256(entry.read_bytes()).hexdigest(),'config_sha256':hashlib.sha256(cfgpath.read_bytes()).hexdigest(),'Torch_imported':False,'CUDA_initialized':False,'actual_native_restore_training_memory_and_WER_pending':True}
+p=root/'outputs/parakeet_turkish/full_nemo_trial_cpu_guards_v1.json';p.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print(json.dumps({'passed':True,'checks':len(checks),'entry_sha256':report['entry_sha256'],'config_sha256':report['config_sha256']}))

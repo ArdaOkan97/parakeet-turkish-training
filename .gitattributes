@@ -1,0 +1,3 @@
+project/** -text
+analysis/** -text
+*.md text eol=lf

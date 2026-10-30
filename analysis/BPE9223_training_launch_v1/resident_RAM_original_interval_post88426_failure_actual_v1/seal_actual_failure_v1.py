@@ -1,0 +1,37 @@
+"""Seal one genuine abnormal owner exit; no retry or state change."""
+import hashlib,json,sys
+from pathlib import Path
+import psutil
+P=Path(r'C:\Users\ardao\Documents\Codex\2026-10-10\i-x20');sys.path.insert(0,str(P/'outputs/parakeet_turkish'))
+from bpe_broad_audio_v1 import record,require
+from atomic_io_retry_v1 import read_json,write_json
+N=Path(__file__).parent;A=N.parent/'resident_RAM_training_actual_10';B=Path(r'E:\gpu_training_scratchpad\runs\BPE9223_resident_RAM_20261018_01');inv=B/'invocations/owner_000009'
+f=read_json(inv/'actual_failure.json');require(f['actual_optimizer_updates']==88426 and f['last_checkpoint']==88400,'Exact genuine failure frontier')
+require(f['error']=="ValueError('Distinct ordered plan on healthy producer')" and 'Original interval beyond source unresolved' in(inv/'CPU/CPU_stderr.log').read_text(),'Masked actual CPU EOF, no duplicate-plan inference')
+child=read_json(A/'current_child.json');cpu=read_json(inv/'CPU/actual_CPU_ready.json');pairs=[f['producer'],child['launcher'],cpu['producer_identity']];deaths=[]
+for who in pairs:
+ try:ctime=psutil.Process(who['pid']).create_time();alive=abs(ctime-who['create_time'])<.001
+ except psutil.NoSuchProcess:ctime=None;alive=False
+ require(not alive,'Actual captured identity dead before closure');deaths.append({'identity':who,'same_identity_alive':alive,'current_create_time_if_PID_reused':ctime})
+unknown=[]
+for pid,role in [(child['launcher']['ppid'],'old_wrapper'),(cpu['producer_identity']['ppid'],'CPU_interpreter_launcher')]:
+ absent=not psutil.pid_exists(pid);require(absent,'Known old PID now absent; no ctime invention');unknown.append({'pid':pid,'role':role,'historical_create_time_available':False,'PID_currently_absent':absent})
+latest=read_json(B/'latest_checkpoint.json');require(latest['committed_updates']==88400 and latest['full_state_verified'],'Exact last saved frontier')
+for key in ('pointer','persistence'):require(record(latest[key]['path'])==latest[key],'Actual immutable saved records')
+pointer=read_json(latest['pointer']['path']);persist=read_json(latest['persistence']['path']);require(persist['named_tensors_verified']==854 and persist['Adam_states_verified']==215,'Saved full state verified')
+snapshot=N/'observed_latest_checkpoint_at_failure.json';snapshot.write_bytes((B/'latest_checkpoint.json').read_bytes())
+binding=pointer['journal_prefix'];journal=Path(binding['path']);whole=hashlib.sha256();saved=hashlib.sha256();remaining=binding['offset'];tail_parts=[]
+with journal.open('rb')as handle:
+ while block:=handle.read(8*1024**2):
+  whole.update(block);take=min(remaining,len(block));saved.update(block[:take]);remaining-=take
+  if take<len(block):tail_parts.append(block[take:])
+require(remaining==0 and saved.hexdigest()==binding['sha256'],'Whole actual saved prefix exact')
+tail=b''.join(tail_parts);events=[json.loads(x)for x in tail.splitlines()];ids=[v['optimizer_updates']for v in events];require(ids==list(range(88401,88427)),'Exact26 ordered positive unsaved events')
+for e in events:require(e['kind']=='ASR18_committed_training_update_v1' and e['native']['update']==e['optimizer_updates'] and e['prepared_evidence']['actual_positive_native_update']==e['optimizer_updates'],'Every tail event positive and prepared/native counters exact')
+tail_path=N/'preserved_actual_positive_tail_88401_88426.jsonl';tail_path.write_bytes(tail)
+current=inv/'plans/plan_002042.json';nextplan=inv/'plans/plan_002043.json';plan=read_json(current);future=read_json(nextplan);require(plan['initial_committed_updates']==88420 and future['initial_committed_updates']==88440 and len(plan['updates'])==20,'Actual current and rejected next plans')
+first=f['actual_optimizer_updates']-plan['initial_committed_updates'];candidates=list(range(88427,88441));candidate_path=N/'actual_current_plan88421_88440_remaining88427_88440.json';write_json(candidate_path,{'source_plan':record(current),'initial_updates':88420,'first_unconsumed_update_index':first,'candidate_global_updates':candidates,'updates':plan['updates'][first:],'not_assumed_native_plus_one':True})
+monitor=read_json(inv/'monitor_completion.json');worker=read_json(inv/'private_metadata_worker_completion.json');require(monitor['joined'] and monitor['clean'] and monitor['error'] is None and worker['joined'] and worker['worker_connections_closed_on_worker'],'Actual monitor/planner joined')
+config=Path(child['command'][child['command'].index('--configuration')+1]);lease_snapshot=N/'observed_closed_owner_lease.json';lease_snapshot.write_bytes((P/'work/gpu_training_owner.json').read_bytes())
+r={'kind':'ASR18_actual_resident_RAM_original_interval_failure_saved88400_tail88426_v1','actual_owned_session':62574,'actual_exec_tool_exit_code':1,'actual_tool_chunk':'0cafa9','actual_wrapper_command_exit_code':1,'actual_native_OS_exit_code':None,'actual_native_nonzero_wait_observed_by_wrapper':True,'actual_CPU_OS_exit_code':None,'numeric_OS_exit_codes_not_persisted':True,'normal_native0_claimed':False,'intentional_stop_claimed':False,'branch':str(B),'producer':f['producer'],'captured_identity_pairs':pairs,'observed_identity_deaths':deaths,'all_captured_identity_pairs_dead':True,'known_old_PIDs_without_recorded_create_time':unknown,'actual_optimizer_updates_before_failure':88426,'saved_optimizer_updates':88400,'original_failure':record(inv/'actual_failure.json'),'original_monitor_completion':record(inv/'monitor_completion.json'),'original_private_metadata_worker_completion':record(inv/'private_metadata_worker_completion.json'),'original_CPU_stderr':record(inv/'CPU/CPU_stderr.log'),'original_CPU_ready':record(inv/'CPU/actual_CPU_ready.json'),'original_native_log':record(A/'native_000009.log'),'original_current_child':record(A/'current_child.json'),'source_configuration':record(config),'effective_configuration':record(inv/'configuration.json'),'worker_source':record(f['producer']and P/'work/research/run_ASR18_BPE9223_resident_RAM_training_v10.py'),'ROOT_execution_review':record(N.parent/'ROOT_third_original_full_clip_saved47600_execution_review_v1.json'),'checkpoint_pointer':latest['pointer'],'checkpoint_persistence':latest['persistence'],'latest_checkpoint_snapshot':record(snapshot),'saved_journal_prefix':binding,'whole_journal_including_preserved_tail':{'path':str(journal),'sha256':whole.hexdigest(),'bytes':journal.stat().st_size},'preserved_unsaved_tail':record(tail_path),'preserved_tail_positive_updates':ids,'original_journal_or_saved_state_mutated':False,'actual_current_preparation_plan':record(current),'unsubmitted_next_plan':record(nextplan),'first_unconsumed_update_index':first,'candidate_failed_global_updates':candidates,'failed_update_metadata':record(candidate_path),'failed_global_update_and_row_not_yet_identified':True,'closed_lease_snapshot':record(lease_snapshot),'cause_scope':'Top submit guard masked already failed CPU. CPU stderr ordinary yodas written!=count. Queue not drained, failed update bounded88427..88440, not assumed88427. No resource failure/duplicate-plan cause or media remedy inferred. No retry/reset.'}
+path=N/'actual_failure_closure.json';write_json(path,r);print(json.dumps({'receipt':record(path),'saved':88400,'actual':88426,'tail':record(tail_path),'current_plan':record(current),'identities_dead':True}),flush=True)
